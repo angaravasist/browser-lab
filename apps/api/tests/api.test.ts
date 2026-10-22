@@ -106,6 +106,22 @@ describe('session lifecycle against a stub grid', () => {
     expect((await json('GET', '/api/browser-builds')).body.builds[0].availability).toBe('offline');
   });
 
+  it('serves a build from whichever configured worker advertises it (arm64 laptop + amd64 worker)', async () => {
+    await app.close();
+    const arm = await startStubGrid({ catalogIds: ['firefox-149-linux'], arch: 'aarch64', caps: () => ({}), executable: () => ({}) });
+    app = await makeApp({ BROWSERLAB_GRID_URLS: `local=${arm.url},amd64=${grid.url}` });
+    const builds = (await json('GET', '/api/browser-builds')).body.builds as any[];
+    expect(builds.find((b) => b.id === 'chrome-109-linux-amd64')).toMatchObject({ availability: 'ready', worker: 'amd64', workerArch: 'amd64' });
+    expect(builds.find((b) => b.id === 'edge-121-linux-amd64')).toMatchObject({ availability: 'unsupported-architecture', worker: 'local' });
+    const s = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
+    expect(s.actualArch).toBe('amd64');
+    expect(grid.sessions.size).toBe(1);
+    expect(arm.sessions.size).toBe(0);
+    await app.close();
+    await arm.close();
+    app = await makeApp();
+  });
+
   it('enforces capacity atomically under concurrent launches', async () => {
     await app.close();
     app = await makeApp({ BROWSERLAB_MAX_CONCURRENT_SESSIONS: '1' });

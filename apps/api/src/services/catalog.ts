@@ -30,8 +30,8 @@ export class Catalog {
     return this.entries.find((e) => e.id === id) ?? fail('BROWSER_NOT_PROVISIONED', `Unknown browser build "${id}".`);
   }
 
-  gridUrl(entry: CatalogEntry): string {
-    return this.cfg.grids[entry.worker] ?? fail('WORKER_OFFLINE', `Worker "${entry.worker}" is not configured (BROWSERLAB_GRID_URLS).`);
+  gridUrl(worker: string): string {
+    return this.cfg.grids[worker] ?? fail('WORKER_OFFLINE', `Worker "${worker}" is not configured (BROWSERLAB_GRID_URLS).`);
   }
 
   async gridStatuses(force = false): Promise<Record<string, GridStatus | Error>> {
@@ -57,8 +57,10 @@ export class Catalog {
     const verified = new Map((this.db.prepare('SELECT id, verified_status, verification_message, actual_version, last_verified_at FROM browser_builds').all() as any[]).map((r) => [r.id, r]));
     return this.entries.map((e) => {
       const v = verified.get(e.id);
-      const base = { ...e, activeSessions: active.get(e.id) ?? 0, lastVerifiedVersion: v?.actual_version ?? undefined, lastVerifiedAt: v?.last_verified_at ?? undefined };
-      const s = statuses[e.worker];
+      // Any configured worker that advertises this exact build may serve it (e.g. a dedicated amd64 worker); else the entry's default worker explains why not.
+      const worker = Object.entries(statuses).find(([, st]) => !(st instanceof Error) && st.nodes.some((n) => n.slots.some((x) => x.catalogId === e.id)))?.[0] ?? e.worker;
+      const base = { ...e, worker, activeSessions: active.get(e.id) ?? 0, lastVerifiedVersion: v?.actual_version ?? undefined, lastVerifiedAt: v?.last_verified_at ?? undefined };
+      const s = statuses[worker];
       const at = this.probe ? new Date(this.probe.at).toISOString() : undefined;
       const mk = (availability: BrowserBuild['availability'], reason: string, workerArch?: string): BrowserBuild => ({ ...base, availability, reason, workerArch, lastProbeAt: at });
       if (!s) return mk('offline', `Worker "${e.worker}" is not configured. ${e.provider === 'safari-relay' ? 'Safari needs a separate Mac worker: see docs/SAFARI-WORKER.md. Not run: compatible macOS host unavailable.' : 'Add it to BROWSERLAB_GRID_URLS.'}`);

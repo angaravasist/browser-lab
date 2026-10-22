@@ -1,0 +1,18 @@
+# Historical browser catalogue (Chrome 109, Edge 121, Firefox 115 ESR, Firefox 115 release). Linux amd64 hosts only.
+#   docker compose -f compose.yaml -f compose.legacy-amd64.yaml up -d --build
+# On arm64 hosts these builds report "unsupported architecture"; run this on a dedicated amd64 worker instead
+# (compose.worker-amd64.yaml). First start downloads ~4 GB of pinned images.
+services:
+  firefox-esr-image:
+    # Builds the local Firefox 115 ESR node image the Grid launches; exits immediately when run.
+    build: { context: browser-images/custom/firefox-115esr }
+    image: browserlab/standalone-firefox:115.43.1esr-grid-4.51.0-20261010
+    platform: linux/amd64
+    entrypoint: ["true"]
+    restart: "no"
+    network_mode: none
+  grid:
+    environment:
+      BROWSERLAB_GRID_PROFILE: legacy
+    depends_on:
+      firefox-esr-image: { condition: service_completed_successfully }
