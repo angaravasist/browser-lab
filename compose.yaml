@@ -1,0 +1,76 @@
+# BrowserLab: `docker compose up -d --build`, then open http://localhost:3000
+# Only the app is published, and only on loopback. Grid, WebDriver (4444) and VNC stay on the private network.
+name: browserlab
+
+services:
+  app:
+    build: { context: ., dockerfile: docker/Dockerfile }
+    image: browserlab/app:local
+    restart: unless-stopped
+    ports:
+      - "${BROWSERLAB_BIND_HOST:-127.0.0.1}:${BROWSERLAB_PORT:-3000}:3000"
+    environment:
+      BROWSERLAB_DATA_DIR: /data
+      BROWSERLAB_GRID_URLS: ${BROWSERLAB_GRID_URLS:-local=http://grid:4444}
+      BROWSERLAB_PUBLIC_ORIGINS: ${BROWSERLAB_PUBLIC_ORIGINS:-}
+      BROWSERLAB_PORT: ${BROWSERLAB_PORT:-3000}
+      BROWSERLAB_MAX_CONCURRENT_SESSIONS: ${BROWSERLAB_MAX_CONCURRENT_SESSIONS:-2}
+      BROWSERLAB_IDLE_TIMEOUT_MINUTES: ${BROWSERLAB_IDLE_TIMEOUT_MINUTES:-30}
+      BROWSERLAB_MAX_SESSION_MINUTES: ${BROWSERLAB_MAX_SESSION_MINUTES:-120}
+      BROWSERLAB_TRUSTED_PRIVATE_URLS: ${BROWSERLAB_TRUSTED_PRIVATE_URLS:-true}
+      BROWSERLAB_RETENTION_DAYS: ${BROWSERLAB_RETENTION_DAYS:-30}
+      BROWSERLAB_MAX_TRANSFER_MB: ${BROWSERLAB_MAX_TRANSFER_MB:-25}
+      BROWSERLAB_LOG_LEVEL: ${BROWSERLAB_LOG_LEVEL:-info}
+      BROWSERLAB_SAFARI_VNC: ${BROWSERLAB_SAFARI_VNC:-}
+      BROWSERLAB_SAFARI_VNC_PASSWORD: ${BROWSERLAB_SAFARI_VNC_PASSWORD:-}
+    volumes:
+      - browserlab-data:/data
+    read_only: true
+    tmpfs: [/tmp]
+    networks: [browserlab]
+    depends_on:
+      grid: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  grid:
+    build: { context: ., dockerfile: docker/Dockerfile.grid }
+    image: browserlab/grid:local
+    restart: unless-stopped
+    # SECURITY: the Docker socket is host-root-equivalent. Only this upstream Selenium container gets it;
+    # the BrowserLab API never does. Use compose.static.yaml where socket mounts are not allowed.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Required by Dynamic Grid for per-session metadata. Bound into browser containers only for
+      # `se:recordVideo` sessions, which BrowserLab never requests (capability allowlist).
+      - grid-assets:/opt/selenium/assets
+    environment:
+      BROWSERLAB_GRID_PROFILE: ${BROWSERLAB_GRID_PROFILE:-default}
+      SE_DYNAMIC_MAX_SESSIONS: ${BROWSERLAB_MAX_CONCURRENT_SESSIONS:-2}
+      SE_DYNAMIC_OVERRIDE_MAX_SESSIONS: "true"
+      SE_NODE_GRID_URL: http://grid:4444
+      SE_SESSION_REQUEST_TIMEOUT: "180"
+      # Browser containers are reachable only on this private network and only through the app's
+      # authenticated relay; a password here would be copied into every browser container's env anyway.
+      SE_VNC_NO_PASSWORD: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [browserlab]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:4444/status | grep -q '\"ready\": true'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # First start pulls the pinned browser images (about 1-3 GB).
+      start_period: 900s
+
+networks:
+  browserlab:
+
+volumes:
+  browserlab-data:
+  grid-assets:
