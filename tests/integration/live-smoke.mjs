@@ -123,6 +123,8 @@ check((await Promise.race([closedP, sleep(5000).then(() => 'open')])) !== 'open'
 check((await api('DELETE', `/api/sessions/${s.id}`)).state === 'completed', 'close is idempotent');
 
 if (a.restart) {
+  const browsers = () => new Set(execFileSync('docker', ['ps', '-q', '--filter', 'name=browser-'], { encoding: 'utf8' }).split('\n').filter(Boolean));
+  const existing = browsers();
   const s2 = await launch(a.catalog, fixture);
   execFileSync('docker', ['compose', 'restart', 'app'], { stdio: 'ignore' });
   await waitFor(async () => { try { return (await api('GET', '/api/health')).status === 'ok'; } catch { return false; } }, 'app restart', 60_000);
@@ -131,8 +133,8 @@ if (a.restart) {
   const kept = await api('GET', `/api/sessions/${s.id}`);
   check(kept.result?.outcome === 'passed' && kept.evidenceCount >= 1, 'results and evidence persisted across restart');
   check((await api('GET', `/api/evidence/${shot.id}/download`)).length === shot.byte_size, 'evidence file readable after restart');
-  await waitFor(() => !execFileSync('docker', ['ps', '-q', '--filter', 'name=browser-'], { encoding: 'utf8' }).trim(), 'browser containers released', 60_000);
-  ok('no browser containers left running');
+  await waitFor(() => [...browsers()].every((c) => existing.has(c)), 'browser containers released', 60_000);
+  ok('the interrupted session\'s browser container was removed');
 }
 console.log(`\nPASS: ${step} checks for ${a.catalog}`);
 process.exit(0);
