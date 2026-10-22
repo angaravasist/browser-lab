@@ -39,16 +39,35 @@ export async function buildApp(cfg: Config = loadConfig()) {
   const sessions = new SessionService(db, cfg, catalog, evidence, app.log);
   const ctx: Ctx = { db, cfg, catalog, sessions, evidence };
 
+  // A loopback listener can still be targeted by DNS rebinding if Host is trusted blindly.
+  // "app" is BrowserLab's internal Docker hostname used by the built-in fixture.
+  const localHosts = new Set(['localhost', '127.0.0.1', '[::1]', 'app']);
+  const proxyHosts = new Set(cfg.publicOrigins.map((origin) => new URL(origin).hostname.toLowerCase()));
+  const allowedHost = (rawHost: string | undefined, localAddress?: string): boolean => {
+    // Reject malformed Host values without accidentally matching ordinary letters (e.g. the "s" in localhost).
+    if (!rawHost || /\s/.test(rawHost) || ['@', '/', '\\', '#', '?', ','].some((part) => rawHost.includes(part))) return false;
+    try {
+      const hostname = new URL(`http://${rawHost}`).hostname.toLowerCase();
+      // Allow direct use of this listener's actual container address.
+      // Unlike accepting arbitrary private IPs, this cannot make an attacker Host valid.
+      return localHosts.has(hostname) || proxyHosts.has(hostname) || (!!localAddress && hostname === localAddress);
+    } catch { return false; }
+  };
   const allowedOrigin = (req: FastifyRequest) => {
     const origin = req.headers.origin;
-    if (!origin) return false;
+    if (!origin || !allowedHost(req.headers.host, req.raw.socket.localAddress)) return false;
     if (cfg.publicOrigins.includes(origin)) return true;
-    try { return new URL(origin).host === req.headers.host; } catch { return false; }
+    try {
+      const url = new URL(origin);
+      return ['http:', 'https:'].includes(url.protocol) && url.host === req.headers.host;
+    } catch { return false; }
   };
 
   app.addContentTypeParser(['application/octet-stream', 'image/png'], { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
   // CSRF guard: browsers send Origin on cross-site writes; the API is same-origin only.
   app.addHook('onRequest', async (req) => {
+    if (!allowedHost(req.headers.host, req.raw.socket.localAddress))
+      throw new AppError('FORBIDDEN_ORIGIN', 'Untrusted Host header. Use localhost or a configured trusted origin.');
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.headers.origin && !allowedOrigin(req))
       throw new AppError('FORBIDDEN_ORIGIN', 'Cross-origin requests are not allowed.');
   });

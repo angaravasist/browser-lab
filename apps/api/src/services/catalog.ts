@@ -35,7 +35,10 @@ export class Catalog {
   }
 
   async gridStatuses(force = false): Promise<Record<string, GridStatus | Error>> {
-    if (!force && this.probe && Date.now() - this.probe.at < this.cfg.probeCacheMs) return this.probe.status;
+    // Startup failures are transient: re-probe unhealthy grids quickly instead of caching offline for 10 s.
+    const healthy = this.probe && Object.values(this.probe.status).every((s) => !(s instanceof Error) && s.ready);
+    const ttl = healthy ? this.cfg.probeCacheMs : Math.min(this.cfg.probeCacheMs, 1000);
+    if (!force && this.probe && Date.now() - this.probe.at < ttl) return this.probe.status;
     const status: Record<string, GridStatus | Error> = {};
     await Promise.all(Object.entries(this.cfg.grids).map(async ([name, url]) => {
       try { status[name] = await gridStatus(url); } catch (e) { status[name] = e as Error; }

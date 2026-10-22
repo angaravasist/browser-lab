@@ -9,7 +9,7 @@ import { AppError, fail } from '../errors.ts';
 import type { Catalog } from './catalog.ts';
 import type { EvidenceStore } from './evidence.ts';
 import { checkTargetUrl, redactUrl } from './urlPolicy.ts';
-import { createDriver, deleteGridSession, gridStatus, sessionCaps, vncWsUrl, gridCommand, type Driver } from '../selenium/grid.ts';
+import { createDriver, deleteGridSession, gridHasSession, gridStatus, sessionCaps, vncWsUrl, gridCommand, type Driver } from '../selenium/grid.ts';
 import { buildCapabilities } from '../selenium/capabilities.ts';
 import { collectFacts, evaluate } from '../selenium/verify.ts';
 import type { LiveTarget } from '../selenium/liveRelay.ts';
@@ -17,6 +17,7 @@ import type { LiveTarget } from '../selenium/liveRelay.ts';
 const { error: wdError } = webdriver;
 const ACTIVE_SQL = ACTIVE_STATES.map((s) => `'${s}'`).join(',');
 const isFinal = (s: string) => (FINAL_STATES as readonly string[]).includes(s);
+const QUIT_TIMEOUT_MS = 90_000;
 
 /** Allowed predecessors for each state. Every change goes through transition(), which enforces this atomically. */
 const FROM: Record<SessionState, SessionState[]> = {
@@ -80,7 +81,7 @@ export class SessionService {
       if (forEntry >= entry.maxConcurrentSessions) fail('NO_SESSION_CAPACITY', `${entry.brand} ${entry.requestedVersion} allows ${entry.maxConcurrentSessions} concurrent session(s).`);
       const t = now();
       this.db.prepare(`INSERT INTO sessions (id, project_id, environment_id, browser_build_id, worker_id, target_url, requested_version, state, started_at, last_activity_at, viewport_width, viewport_height, build_label, tester)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)`).run(id, input.projectId ?? null, input.environmentId ?? null, entry.id, build.worker, url.url,
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)`).run(id, input.projectId ?? null, input.environmentId ?? null, entry.id, build.worker, redactUrl(url.url),
         `${entry.requestedVersion}${entry.channel === 'esr' ? ' ESR' : ''}`, t, t, input.viewport.width, input.viewport.height, input.buildLabel ?? null, input.tester ?? null);
     })();
     this.live.set(id, { gridUrl, entry, sockets: new Set() });
@@ -98,6 +99,9 @@ export class SessionService {
     this.transition(id, 'provisioning');
     let driver: Driver;
     try {
+      // Do not customise security prefs for test browsers: a compatibility test
+      // must reflect the browser's normal behaviour. CI uses the fixture's
+      // private network IPv4 address for Firefox ESR instead of a hostname.
       const pending = createDriver(live.gridUrl, buildCapabilities(entry));
       // If we give up waiting, still quit the session whenever it does arrive: no orphaned containers.
       const timeout = new Promise<never>((_, rej) => setTimeout(() => { pending.then((d) => this.quietQuit(d), () => undefined); rej(new AppError('SESSION_START_TIMEOUT', `The browser did not start within ${this.cfg.sessionStartTimeoutMs / 1000}s. The first launch of a build may still be pulling its image; try again shortly.`)); }, this.cfg.sessionStartTimeoutMs));
@@ -202,10 +206,16 @@ export class SessionService {
     if (!this.transition(id, 'closing')) { if (!isFinal(this.row(id).state)) this.transition(id, final, { failure_code: code ?? null, failure_message: message ?? null }); return; }
     let quitError: string | null = null;
     if (live?.driver) {
-      try { await Promise.race([live.driver.quit(), new Promise((_, rej) => setTimeout(() => rej(new Error('quit timed out')), 20_000))]); }
+      // Grid answers quit only after the browser container has stopped, which takes 5-30 s on small CI runners.
+      try { await Promise.race([live.driver.quit(), new Promise((_, rej) => setTimeout(() => rej(new Error('quit timed out')), QUIT_TIMEOUT_MS))]); }
       catch (e) { quitError = (e as Error).message.split('\n')[0]; }
     }
-    if ((quitError || !live?.driver) && r.grid_session_id) await deleteGridSession(live?.gridUrl ?? this.catalog.gridUrl(r.worker_id), r.grid_session_id);
+    if ((quitError || !live?.driver) && r.grid_session_id) {
+      const gridUrl = live?.gridUrl ?? this.catalog.gridUrl(r.worker_id);
+      await deleteGridSession(gridUrl, r.grid_session_id);
+      // Only an error if the browser is really still there; a released session is a clean close.
+      if (quitError && !(await gridHasSession(gridUrl, r.grid_session_id))) quitError = null;
+    }
     const detachedSafari = r.driver_state === 'detached';
     const ok = this.transition(id, quitError && !detachedSafari && final === 'completed' ? 'closed-with-error' : final, {
       driver_state: 'none',

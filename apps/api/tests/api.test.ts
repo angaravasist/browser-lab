@@ -22,7 +22,7 @@ async function makeApp(env: Record<string, string> = {}) {
   return a;
 }
 const json = async (method: string, url: string, payload?: unknown, headers: Record<string, string> = {}) => {
-  const r = await app.inject({ method: method as 'GET', url, payload: payload as object, headers });
+  const r = await app.inject({ method: method as 'GET', url, payload: payload as object, headers: { host: 'localhost:3000', ...headers } });
   return { status: r.statusCode, body: r.headers['content-type']?.toString().includes('json') ? r.json() : r.body, raw: r };
 };
 const launch = (catalogId: string, extra: object = {}) => json('POST', '/api/sessions', { targetUrl: 'http://app:3000/fixture/index.html', target: { catalogId }, viewport: { width: 1440, height: 900 }, ...extra });
@@ -60,7 +60,7 @@ describe('session lifecycle against a stub grid', () => {
 
     const shot = await json('POST', `/api/sessions/${s.id}/screenshot`, { caption: 'home' });
     expect(shot.status).toBe(201);
-    const file = await app.inject({ url: `/api/evidence/${shot.body.id}/download` });
+    const file = await app.inject({ url: `/api/evidence/${shot.body.id}/download`, headers: { host: 'localhost:3000' } });
     expect(file.headers['content-type']).toBe('image/png');
     expect(file.headers['x-content-type-options']).toBe('nosniff');
     expect((await json('POST', `/api/sessions/${s.id}/result`, { outcome: 'passed', notes: 'ok' })).body.result.outcome).toBe('passed');
@@ -70,6 +70,26 @@ describe('session lifecycle against a stub grid', () => {
     expect(grid.requests.some((q) => q.method === 'DELETE' && q.path === `/session/${grid.sessions.keys().next().value}`)).toBe(true);
     expect((await json('DELETE', `/api/sessions/${s.id}`)).body.state).toBe('completed'); // idempotent
     expect((await json('GET', '/api/reports?outcome=passed')).body).toHaveLength(1);
+  });
+
+  it('persists redacted URL query parameters but navigates the exact original URL', async () => {
+    const secret = 'never-save-this-value';
+    const targetUrl = `http://app:3000/fixture/index.html?auth=${secret}`;
+    const r = await launch('chrome-109-linux-amd64', { targetUrl });
+    const s = await until(r.body.id, ['running']);
+    expect(s.targetUrl).toContain('auth=***');
+    expect(s.targetUrl).not.toContain(secret);
+    expect(grid.requests.some((x) => x.method === 'POST' && x.path.endsWith('/url') && x.body.url === targetUrl)).toBe(true);
+    expect(JSON.stringify((await json('GET', '/api/reports')).body)).not.toContain(secret);
+  });
+
+  it('close: a failed quit is clean if the Grid released the browser, an error if it did not', async () => {
+    grid.deleteFailure = 'released';
+    const a = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
+    expect((await json('DELETE', `/api/sessions/${a.id}`)).body).toMatchObject({ state: 'completed', failureCode: null });
+    grid.deleteFailure = 'stuck';
+    const b = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
+    expect((await json('DELETE', `/api/sessions/${b.id}`)).body).toMatchObject({ state: 'closed-with-error', failureCode: 'GRID_UNAVAILABLE' });
   });
 
   it('identity mismatch stops the browser and marks verification-failed, never passed', async () => {
@@ -160,14 +180,14 @@ describe('session lifecycle against a stub grid', () => {
 
   it('uploads and downloads go through Grid with caps and validation', async () => {
     const s = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
-    const up = await app.inject({ method: 'POST', url: `/api/sessions/${s.id}/files`, payload: Buffer.from('hello'), headers: { 'content-type': 'application/octet-stream', 'x-filename': encodeURIComponent('../../rep ort.txt') } });
+    const up = await app.inject({ method: 'POST', url: `/api/sessions/${s.id}/files`, payload: Buffer.from('hello'), headers: { host: 'localhost:3000', 'content-type': 'application/octet-stream', 'x-filename': encodeURIComponent('../../rep ort.txt') } });
     expect(up.json()).toEqual({ name: 'rep ort.txt', remotePath: '/tmp/stub-upload/rep ort.txt' });
-    expect((await app.inject({ method: 'POST', url: `/api/sessions/${s.id}/files`, payload: Buffer.alloc(26 * 1024 * 1024), headers: { 'content-type': 'application/octet-stream', 'x-filename': 'big.bin' } })).statusCode).toBe(413);
+    expect((await app.inject({ method: 'POST', url: `/api/sessions/${s.id}/files`, payload: Buffer.alloc(26 * 1024 * 1024), headers: { host: 'localhost:3000', 'content-type': 'application/octet-stream', 'x-filename': 'big.bin' } })).statusCode).toBe(413);
     expect((await json('GET', `/api/sessions/${s.id}/downloads`)).body.names).toEqual([]);
     expect((await json('GET', `/api/sessions/${s.id}/downloads/..%2F..%2Fetc%2Fpasswd`)).status).toBe(404);
     const gridId = [...grid.sessions.keys()][0];
     await fetch(`${grid.url}/session/${gridId}/execute/sync`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ script: '__stub_download__', args: [] }) });
-    const dl = await app.inject({ url: `/api/sessions/${s.id}/downloads/report.txt` });
+    const dl = await app.inject({ url: `/api/sessions/${s.id}/downloads/report.txt`, headers: { host: 'localhost:3000' } });
     expect(dl.body).toBe('stub download');
     expect(dl.headers['content-disposition']).toMatch(/^attachment/);
     const ev = await json('POST', `/api/sessions/${s.id}/downloads/report.txt/evidence`);
@@ -204,6 +224,18 @@ describe('live viewer relay', () => {
     await json('DELETE', `/api/sessions/${s.id}`);
     expect(await closed).toBe(4002);
     await expect(json('POST', `/api/sessions/${s.id}/view-token`).then((r) => r.status)).resolves.toBe(409);
+  });
+
+  it('rejects DNS-rebinding Host headers even when Origin appears same-site', async () => {
+    expect((await json('GET', '/api/health', undefined, { host: 'attacker.example:3000' })).status).toBe(403);
+    expect((await json('POST', '/api/projects', { name: 'bad' }, { host: 'attacker.example:3000', origin: 'http://attacker.example:3000' })).status).toBe(403);
+    expect((await json('GET', '/api/health', undefined, { host: 'localhost:3000' })).status).toBe(200);
+    expect((await json('GET', '/api/health', undefined, { host: 'localhosT:3000' })).status).toBe(200);
+    expect((await json('GET', '/api/health', undefined, { host: 'localhost.attacker.example:3000' })).status).toBe(403);
+    expect((await json('GET', '/api/health', undefined, { host: '172.30.250.250:3000' })).status).toBe(403);
+    expect((await json('GET', '/api/health', undefined, { host: 'localhost@attacker.example:3000' })).status).toBe(403);
+    expect((await json('GET', '/api/health', undefined, { host: '127.0.0.1:3000' })).status).toBe(200);
+    expect((await json('GET', '/api/health', undefined, { host: 'app:3000' })).status).toBe(200);
   });
 
   it('rejects cross-origin writes (CSRF guard)', async () => {
@@ -259,10 +291,10 @@ describe('evidence store safety and migrations', () => {
   it('rejects unknown/traversal evidence ids and non-PNG desktop captures; migrations are idempotent', async () => {
     expect((await json('GET', '/api/evidence/..%2F..%2Fbrowserlab.db/download')).status).toBe(404);
     const s = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
-    const bad = await app.inject({ method: 'POST', url: `/api/sessions/${s.id}/desktop-capture`, payload: Buffer.from('not a png'), headers: { 'content-type': 'image/png' } });
+    const bad = await app.inject({ method: 'POST', url: `/api/sessions/${s.id}/desktop-capture`, payload: Buffer.from('not a png'), headers: { host: 'localhost:3000', 'content-type': 'image/png' } });
     expect(bad.statusCode).toBe(400);
     const png = readFileSync(new URL('fixtures/one-pixel.png', import.meta.url));
-    const ok = await app.inject({ method: 'POST', url: `/api/sessions/${s.id}/desktop-capture`, payload: png, headers: { 'content-type': 'image/png', 'x-caption': 'desk' } });
+    const ok = await app.inject({ method: 'POST', url: `/api/sessions/${s.id}/desktop-capture`, payload: png, headers: { host: 'localhost:3000', 'content-type': 'image/png', 'x-caption': 'desk' } });
     expect(ok.json()).toMatchObject({ source: 'vnc-desktop', caption: 'desk' });
     await app.close();
     app = await makeApp(); // reopen: migrations already applied

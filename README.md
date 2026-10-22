@@ -24,7 +24,7 @@ browser), Safari without a real Mac, load testing, visual diffing, hosted multi-
 Requirements: Docker with Compose v2.24+ (Docker Desktop on Windows/macOS, or Docker Engine on Linux).
 
 ```bash
-git clone <this repository> browserlab
+git clone https://github.com/angaravasist/browser-lab.git browserlab
 cd browserlab
 cp .env.example .env        # Windows PowerShell: Copy-Item .env.example .env
 docker compose up -d --build
@@ -69,6 +69,14 @@ browser ──127.0.0.1:3000──► BrowserLab app (Fastify API + React UI, SQ
 ```
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Decisions and evidence: [docs/DECISIONS.md](docs/DECISIONS.md)
+
+## Internal smoke-test fixture
+
+Firefox 115 ESR upgrades the short Docker hostname `http://app:3000` to HTTPS
+during the internal HTTP fixture smoke test. CI instead navigates to the app
+container's private IPv4 address for this test, keeping the browser's normal
+security settings unchanged. This is only test infrastructure, not a claim that
+browser HTTPS upgrades are disabled in real applications.
 
 ## Security in one paragraph
 
