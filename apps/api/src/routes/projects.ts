@@ -10,7 +10,7 @@ type P = { Params: { id: string } };
 export function projectRoutes(app: FastifyInstance, { db, cfg, catalog }: Ctx) {
   const project = (id: string) => (db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as any) ?? fail('NOT_FOUND', 'Project not found.');
   const envs = (id: string) => (db.prepare('SELECT id, name, base_url baseUrl, is_default isDefault, created_at createdAt FROM environments WHERE project_id = ? ORDER BY name').all(id) as any[]).map((e) => ({ ...e, isDefault: !!e.isDefault }));
-  const policy = (id: string): PolicyTarget[] => (db.prepare('SELECT family, channel, requested_version requestedVersion, target_os targetOs, kind, required FROM browser_targets WHERE project_id = ? ORDER BY family, requested_version').all(id) as any[]).map((t) => ({ ...t, required: !!t.required }));
+  const policy = (id: string): PolicyTarget[] => (db.prepare('SELECT family, channel, requested_version requestedVersion, target_os targetOs, kind, required FROM browser_targets WHERE project_id = ? ORDER BY rowid').all(id) as any[]).map((t) => ({ ...t, required: !!t.required }));
 
   const insertEnv = (projectId: string, e: { name: string; baseUrl: string; isDefault: boolean }) => {
     const url = checkTargetUrl(e.baseUrl, cfg.trustedPrivateUrls).url;

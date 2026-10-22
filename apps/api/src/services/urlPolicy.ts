@@ -20,6 +20,7 @@ export function checkTargetUrl(raw: string, trustedPrivate: boolean): UrlCheck {
   const input = raw.trim();
   if (!input || input.length > 2048) fail('INVALID_URL', 'URL must be 1-2048 characters.');
   // Control characters can smuggle different meanings past logs and parsers.
+  // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f]/.test(input)) fail('INVALID_URL', 'URL contains control characters.');
   let u: URL;
   try { u = new URL(input); } catch { return fail('INVALID_URL', 'Not a valid absolute URL. Include http:// or https://.'); }
