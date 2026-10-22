@@ -78,6 +78,16 @@ container's private IPv4 address for this test, keeping the browser's normal
 security settings unchanged. This is only test infrastructure, not a claim that
 browser HTTPS upgrades are disabled in real applications.
 
+## Request rate limiting
+
+All requests (including project CRUD, health checks, reports, browser launches
+and evidence downloads) are subject to a per-client Fastify rate limiter.
+The default is **600 requests per minute**, with HTTP 429 and Retry-After for
+clients over quota. Local single-user installations may adjust
+`BROWSERLAB_RATE_LIMIT_MAX` (1–10000) and
+`BROWSERLAB_RATE_LIMIT_WINDOW_MS` (1000–3600000). The in-memory limiter
+does **not** replace authentication, a private network, or a TLS reverse proxy.
+
 ## Security in one paragraph
 
 BrowserLab runs old browsers with known vulnerabilities: test only sites you trust, with test accounts and synthetic

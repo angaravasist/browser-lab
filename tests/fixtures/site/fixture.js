@@ -1,15 +1,25 @@
-// Kept external so the page works under BrowserLab's Content-Security-Policy.
+// The fixture uses DOM text sinks only and encodes user-provided filenames in URLs.
 const params = new URLSearchParams(location.search);
 const color = params.get('color');
 if (color && /^[0-9a-f]{6}$/i.test(color)) document.documentElement.style.setProperty('--bg', `#${color}`);
-const $ = (id) => document.getElementById(id);
-if ($('query')) $('query').textContent = location.search || '(none)';
-if ($('file')) {
-  // Choosing a file navigates, so the selection is observable from outside the browser (current URL).
-  $('file').addEventListener('change', (e) => {
-    const f = e.target.files[0];
-    $('status').textContent = `Selected file: ${f ? f.name : 'none'}`;
-    if (f) location.href = `page2.html?uploaded=${encodeURIComponent(f.name)}&size=${f.size}`;
+const queryOutput = document.getElementById('query');
+if (queryOutput) queryOutput.textContent = location.search || '(none)';
+
+const fileInput = document.getElementById('file');
+const statusOutput = document.getElementById('status');
+if (fileInput && statusOutput) {
+  fileInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    statusOutput.textContent = `Selected file: ${file ? file.name : 'none'}`;
+    if (file) {
+      const next = new URL('page2.html', location.href);
+      next.searchParams.set('uploaded', file.name);
+      next.searchParams.set('size', String(file.size));
+      location.assign(next.href);
+    }
   });
 }
-if (params.get('autodownload') === '1' && $('download')) $('download').click();
+if (params.get('autodownload') === '1') {
+  const download = document.getElementById('download');
+  if (download) download.click();
+}

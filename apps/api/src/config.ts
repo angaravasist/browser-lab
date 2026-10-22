@@ -24,6 +24,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     trustedPrivateUrls: (env.BROWSERLAB_TRUSTED_PRIVATE_URLS ?? 'true') === 'true',
     retentionDays: num(env.BROWSERLAB_RETENTION_DAYS, 30),
     maxTransferBytes: num(env.BROWSERLAB_MAX_TRANSFER_MB, 25) * 1024 * 1024,
+    rateLimitMax: num(env.BROWSERLAB_RATE_LIMIT_MAX, 600),
+    rateLimitWindowMs: num(env.BROWSERLAB_RATE_LIMIT_WINDOW_MS, 60_000),
     maxScreenshotBytes: 25 * 1024 * 1024,
     logLevel: env.BROWSERLAB_LOG_LEVEL || 'info',
     /** Extra allowed browser origins (comma separated) for reverse-proxy setups; same-origin is always allowed. */
@@ -39,6 +41,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     probeCacheMs: 10_000,
   };
   if (!(cfg.maxConcurrent >= 1 && cfg.maxConcurrent <= 16)) throw new Error('BROWSERLAB_MAX_CONCURRENT_SESSIONS must be 1-16');
+  if (!Number.isSafeInteger(cfg.rateLimitMax) || cfg.rateLimitMax < 1 || cfg.rateLimitMax > 10_000)
+    throw new Error('BROWSERLAB_RATE_LIMIT_MAX must be an integer from 1 to 10000');
+  if (!Number.isSafeInteger(cfg.rateLimitWindowMs) || cfg.rateLimitWindowMs < 1000 || cfg.rateLimitWindowMs > 3_600_000)
+    throw new Error('BROWSERLAB_RATE_LIMIT_WINDOW_MS must be an integer from 1000 to 3600000');
   return cfg;
 }
 export type Config = ReturnType<typeof loadConfig>;

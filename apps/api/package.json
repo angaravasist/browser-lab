@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@browserlab/shared": "0.1.0",
+    "@fastify/rate-limit": "^11.2.0",
     "@fastify/static": "^10.1.7",
     "@fastify/websocket": "^11.3.4",
     "better-sqlite3": "^13.0.3",
