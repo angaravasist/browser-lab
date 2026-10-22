@@ -125,11 +125,21 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
-      - run: BROWSERLAB_INTERNAL_FIXTURE_HTTP=true docker compose -f compose.yaml -f compose.legacy-amd64.yaml up -d --build --wait --wait-timeout 1800
+      - run: docker compose -f compose.yaml -f compose.legacy-amd64.yaml up -d --build --wait --wait-timeout 1800
       - run: CATALOG_ID=chrome-109-linux-amd64 BROWSER_NAME=chrome npm run test:grid
       - run: node tests/integration/live-smoke.mjs --catalog chrome-109-linux-amd64
       - run: node tests/integration/live-smoke.mjs --catalog edge-121-linux-amd64
-      - run: node tests/integration/live-smoke.mjs --catalog firefox-115esr-linux-amd64
+      # Firefox ESR upgrades the short Docker hostname app:3000 to HTTPS even
+      # when the WebDriver profile disables HTTPS-first. Use the container's
+      # private IPv4 literal for this HTTP-only fixture; keep normal browser
+      # prefs untouched and the rest of the smoke suite unchanged.
+      - name: Firefox 115 ESR smoke (HTTP fixture via private container IP)
+        run: |
+          APP_CONTAINER=$(docker compose -f compose.yaml -f compose.legacy-amd64.yaml ps -q app)
+          test -n "$APP_CONTAINER"
+          APP_IP=$(docker inspect "$APP_CONTAINER" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+          test -n "$APP_IP"
+          node tests/integration/live-smoke.mjs --catalog firefox-115esr-linux-amd64 --fixture "http://${APP_IP}:3000/fixture"
       - run: node tests/integration/live-smoke.mjs --catalog firefox-115-release-linux-amd64
       - name: Logs on failure
         if: failure()

@@ -232,6 +232,7 @@ describe('live viewer relay', () => {
     expect((await json('GET', '/api/health', undefined, { host: 'localhost:3000' })).status).toBe(200);
     expect((await json('GET', '/api/health', undefined, { host: 'localhosT:3000' })).status).toBe(200);
     expect((await json('GET', '/api/health', undefined, { host: 'localhost.attacker.example:3000' })).status).toBe(403);
+    expect((await json('GET', '/api/health', undefined, { host: '172.30.250.250:3000' })).status).toBe(403);
     expect((await json('GET', '/api/health', undefined, { host: 'localhost@attacker.example:3000' })).status).toBe(403);
     expect((await json('GET', '/api/health', undefined, { host: '127.0.0.1:3000' })).status).toBe(200);
     expect((await json('GET', '/api/health', undefined, { host: 'app:3000' })).status).toBe(200);

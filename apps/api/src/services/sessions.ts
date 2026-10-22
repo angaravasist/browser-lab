@@ -99,18 +99,10 @@ export class SessionService {
     this.transition(id, 'provisioning');
     let driver: Driver;
     try {
-      const caps = buildCapabilities(entry);
-      // Explicitly enabled CI fixture only: HTTP app:3000 has no TLS endpoint.
-      // Do not change real QA sessions: the browser's normal HTTPS policy remains intact.
-      if (process.env.BROWSERLAB_INTERNAL_FIXTURE_HTTP === 'true'
-        && entry.family === 'firefox' && url.startsWith('http://app:3000/fixture/')) {
-        caps['moz:firefoxOptions'] = { prefs: {
-          'dom.security.https_first': false,
-          'dom.security.https_only_mode': false,
-          'dom.security.https_first_pbm': false,
-        } };
-      }
-      const pending = createDriver(live.gridUrl, caps);
+      // Do not customise security prefs for test browsers: a compatibility test
+      // must reflect the browser's normal behaviour. CI uses the fixture's
+      // private network IPv4 address for Firefox ESR instead of a hostname.
+      const pending = createDriver(live.gridUrl, buildCapabilities(entry));
       // If we give up waiting, still quit the session whenever it does arrive: no orphaned containers.
       const timeout = new Promise<never>((_, rej) => setTimeout(() => { pending.then((d) => this.quietQuit(d), () => undefined); rej(new AppError('SESSION_START_TIMEOUT', `The browser did not start within ${this.cfg.sessionStartTimeoutMs / 1000}s. The first launch of a build may still be pulling its image; try again shortly.`)); }, this.cfg.sessionStartTimeoutMs));
       driver = await Promise.race([pending, timeout]);

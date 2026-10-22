@@ -72,10 +72,11 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Decisions and evidence:
 
 ## Internal smoke-test fixture
 
-The CI-only setting `BROWSERLAB_INTERNAL_FIXTURE_HTTP=true` prevents Firefox from
-upgrading BrowserLab's internal HTTP-only fixture to HTTPS during smoke tests.
-It applies **only** to `http://app:3000/fixture/`, is disabled by default and must
-not be enabled for real compatibility testing.
+Firefox 115 ESR upgrades the short Docker hostname `http://app:3000` to HTTPS
+during the internal HTTP fixture smoke test. CI instead navigates to the app
+container's private IPv4 address for this test, keeping the browser's normal
+security settings unchanged. This is only test infrastructure, not a claim that
+browser HTTPS upgrades are disabled in real applications.
 
 ## Security in one paragraph
 
