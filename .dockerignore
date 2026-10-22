@@ -5,7 +5,6 @@ data
 .env
 docs
 tests/e2e
+tests/integration
 test-results
 playwright-report
-*.md
-!apps/**/*.md

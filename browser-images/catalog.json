@@ -111,7 +111,7 @@
     {
       "id": "firefox-115esr-linux-amd64",
       "family": "firefox",
-      "brand": "Mozilla Firefox ESR",
+      "brand": "Mozilla Firefox",
       "channel": "esr",
       "engine": "gecko",
       "requestedVersion": "115",
