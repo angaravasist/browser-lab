@@ -30,7 +30,14 @@ for (const name of ['app', 'grid']) {
 }
 
 try {
-  const h = await (await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(5000) })).json();
+  // Compose can report healthy before Grid's browser slots are registered.
+  // Readiness is a condition, not a fixed number of seconds after container startup.
+  let h;
+  for (let i = 0; i < 30; i++) {
+    h = await (await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(5000) })).json();
+    if (h.workers.some((w) => w.status === 'ready')) break;
+    if (i < 29) await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
   ok(`API healthy, database ${h.db}, Selenium Grid ${h.gridRelease}`);
   for (const w of h.workers) {
     if (w.status === 'ready') ok(`worker "${w.name}" ready (${w.os} ${w.arch}, ${w.slots} slots)`);

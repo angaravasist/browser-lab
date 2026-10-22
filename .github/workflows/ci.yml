@@ -118,7 +118,6 @@ jobs:
   # The historical acceptance targets: Google Chrome 109, Microsoft Edge 121, Firefox 115 ESR (and 115 release as a control).
   live-legacy:
     needs: checks
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -130,7 +129,17 @@ jobs:
       - run: CATALOG_ID=chrome-109-linux-amd64 BROWSER_NAME=chrome npm run test:grid
       - run: node tests/integration/live-smoke.mjs --catalog chrome-109-linux-amd64
       - run: node tests/integration/live-smoke.mjs --catalog edge-121-linux-amd64
-      - run: node tests/integration/live-smoke.mjs --catalog firefox-115esr-linux-amd64
+      # Firefox ESR upgrades the short Docker hostname app:3000 to HTTPS even
+      # when the WebDriver profile disables HTTPS-first. Use the container's
+      # private IPv4 literal for this HTTP-only fixture; keep normal browser
+      # prefs untouched and the rest of the smoke suite unchanged.
+      - name: Firefox 115 ESR smoke (HTTP fixture via private container IP)
+        run: |
+          APP_CONTAINER=$(docker compose -f compose.yaml -f compose.legacy-amd64.yaml ps -q app)
+          test -n "$APP_CONTAINER"
+          APP_IP=$(docker inspect "$APP_CONTAINER" --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}')
+          test -n "$APP_IP"
+          node tests/integration/live-smoke.mjs --catalog firefox-115esr-linux-amd64 --fixture "http://${APP_IP}:3000/fixture"
       - run: node tests/integration/live-smoke.mjs --catalog firefox-115-release-linux-amd64
       - name: Logs on failure
         if: failure()

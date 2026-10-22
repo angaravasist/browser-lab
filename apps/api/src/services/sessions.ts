@@ -81,7 +81,7 @@ export class SessionService {
       if (forEntry >= entry.maxConcurrentSessions) fail('NO_SESSION_CAPACITY', `${entry.brand} ${entry.requestedVersion} allows ${entry.maxConcurrentSessions} concurrent session(s).`);
       const t = now();
       this.db.prepare(`INSERT INTO sessions (id, project_id, environment_id, browser_build_id, worker_id, target_url, requested_version, state, started_at, last_activity_at, viewport_width, viewport_height, build_label, tester)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)`).run(id, input.projectId ?? null, input.environmentId ?? null, entry.id, build.worker, url.url,
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)`).run(id, input.projectId ?? null, input.environmentId ?? null, entry.id, build.worker, redactUrl(url.url),
         `${entry.requestedVersion}${entry.channel === 'esr' ? ' ESR' : ''}`, t, t, input.viewport.width, input.viewport.height, input.buildLabel ?? null, input.tester ?? null);
     })();
     this.live.set(id, { gridUrl, entry, sockets: new Set() });
@@ -99,6 +99,9 @@ export class SessionService {
     this.transition(id, 'provisioning');
     let driver: Driver;
     try {
+      // Do not customise security prefs for test browsers: a compatibility test
+      // must reflect the browser's normal behaviour. CI uses the fixture's
+      // private network IPv4 address for Firefox ESR instead of a hostname.
       const pending = createDriver(live.gridUrl, buildCapabilities(entry));
       // If we give up waiting, still quit the session whenever it does arrive: no orphaned containers.
       const timeout = new Promise<never>((_, rej) => setTimeout(() => { pending.then((d) => this.quietQuit(d), () => undefined); rej(new AppError('SESSION_START_TIMEOUT', `The browser did not start within ${this.cfg.sessionStartTimeoutMs / 1000}s. The first launch of a build may still be pulling its image; try again shortly.`)); }, this.cfg.sessionStartTimeoutMs));
