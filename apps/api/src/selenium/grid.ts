@@ -50,7 +50,12 @@ export async function sessionCaps(driver: Driver): Promise<Record<string, any>> 
 }
 
 export async function deleteGridSession(gridUrl: string, sessionId: string) {
-  await fetch(`${gridUrl}/session/${encodeURIComponent(sessionId)}`, { method: 'DELETE', signal: AbortSignal.timeout(20_000) }).catch(() => undefined);
+  await fetch(`${gridUrl}/session/${encodeURIComponent(sessionId)}`, { method: 'DELETE', signal: AbortSignal.timeout(90_000) }).catch(() => undefined);
+}
+
+/** True if the Grid still holds this session (or cannot be asked, which is treated as "maybe still there"). */
+export async function gridHasSession(gridUrl: string, sessionId: string): Promise<boolean> {
+  try { return (await gridStatus(gridUrl)).nodes.some((n) => n.slots.some((s) => s.sessionId === sessionId)); } catch { return true; }
 }
 
 export const vncWsUrl = (gridUrl: string, sessionId: string) => `${gridUrl.replace(/^http/, 'ws')}/session/${encodeURIComponent(sessionId)}/se/vnc`;

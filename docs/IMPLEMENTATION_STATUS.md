@@ -24,11 +24,11 @@ Last updated 2026-10-22. Development host: macOS 27 Apple Silicon, Docker Deskto
 
 | Item | Why | What is needed |
 |---|---|---|
-| Live sessions for Chrome 109, Edge 121, Firefox 115 ESR, Firefox 115 release, Chrome/Edge 149 | amd64-only images; this host is arm64 and BrowserLab never emulates | Push to GitHub to run CI `live-default` / `live-legacy`, or an amd64 Linux/Windows/Intel-Mac host (`docker compose -f compose.yaml -f compose.legacy-amd64.yaml up -d --build`, then `live-smoke.mjs --catalog <id>`) |
+| Live sessions for Edge 121, Firefox 115 ESR, Firefox 115 release, Chrome/Edge 149 | First CI run (2026-10-22): Chrome 109 and Firefox 149 (amd64) fully passed; Chrome 149 and Edge 121 stopped at test-script steps that are now fixed; the rest were not reached | Re-run CI `live-default` / `live-legacy` after merging the fix, and record results in BROWSER-SUPPORT.md |
 | Safari 16 | Needs a Mac on macOS 12/13 with Safari 16; development Mac has Safari 27 | Follow [SAFARI-WORKER.md](SAFARI-WORKER.md) incl. the manual validation; until then `safari-16-mac` stays not provisioned |
 | Remote amd64 worker / Mac via SSH tunnel | No second machine | Files validated only; run once on real hardware |
 | Windows Docker Desktop, macOS Intel, Linux hosts | No hardware here | CI covers Linux amd64/arm64 once enabled; Windows/Intel Mac are manual |
-| CI itself | Repository not pushed | Push; check that the `live-*` jobs pass and record results in BROWSER-SUPPORT.md |
+| CI `live-*` jobs | First run had failures (see BROWSER-SUPPORT.md); fixes on branch `fix/live-smoke-ci` | Merge and re-run |
 
 ## Known limitations / deliberate omissions
 
