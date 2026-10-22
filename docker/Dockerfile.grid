@@ -1,0 +1,6 @@
+# Selenium Dynamic Grid with BrowserLab's generated, per-architecture browser catalogue.
+# This is the ONLY BrowserLab container that may mount the Docker socket.
+FROM selenium/standalone-docker:4.51.0-20261010@sha256:8fe18cdf39c009d00e10d1c2d8aed060e3971b7e9056806186dd3ecd937c39e5
+COPY browser-images/grid-*.toml /opt/selenium/
+COPY --chmod=755 docker/grid-entrypoint.sh /opt/bin/browserlab-grid-entrypoint.sh
+CMD ["/opt/bin/browserlab-grid-entrypoint.sh"]
