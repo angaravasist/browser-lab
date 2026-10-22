@@ -118,7 +118,6 @@ jobs:
   # The historical acceptance targets: Google Chrome 109, Microsoft Edge 121, Firefox 115 ESR (and 115 release as a control).
   live-legacy:
     needs: checks
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -126,7 +125,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 24, cache: npm }
       - run: npm ci
-      - run: docker compose -f compose.yaml -f compose.legacy-amd64.yaml up -d --build --wait --wait-timeout 1800
+      - run: BROWSERLAB_INTERNAL_FIXTURE_HTTP=true docker compose -f compose.yaml -f compose.legacy-amd64.yaml up -d --build --wait --wait-timeout 1800
       - run: CATALOG_ID=chrome-109-linux-amd64 BROWSER_NAME=chrome npm run test:grid
       - run: node tests/integration/live-smoke.mjs --catalog chrome-109-linux-amd64
       - run: node tests/integration/live-smoke.mjs --catalog edge-121-linux-amd64

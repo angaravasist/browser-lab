@@ -72,6 +72,17 @@ describe('session lifecycle against a stub grid', () => {
     expect((await json('GET', '/api/reports?outcome=passed')).body).toHaveLength(1);
   });
 
+  it('persists redacted URL query parameters but navigates the exact original URL', async () => {
+    const secret = 'never-save-this-value';
+    const targetUrl = `http://app:3000/fixture/index.html?auth=${secret}`;
+    const r = await launch('chrome-109-linux-amd64', { targetUrl });
+    const s = await until(r.body.id, ['running']);
+    expect(s.targetUrl).toContain('auth=***');
+    expect(s.targetUrl).not.toContain(secret);
+    expect(grid.requests.some((x) => x.method === 'POST' && x.path.endsWith('/url') && x.body.url === targetUrl)).toBe(true);
+    expect(JSON.stringify((await json('GET', '/api/reports')).body)).not.toContain(secret);
+  });
+
   it('close: a failed quit is clean if the Grid released the browser, an error if it did not', async () => {
     grid.deleteFailure = 'released';
     const a = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
@@ -213,6 +224,13 @@ describe('live viewer relay', () => {
     await json('DELETE', `/api/sessions/${s.id}`);
     expect(await closed).toBe(4002);
     await expect(json('POST', `/api/sessions/${s.id}/view-token`).then((r) => r.status)).resolves.toBe(409);
+  });
+
+  it('rejects DNS-rebinding Host headers even when Origin appears same-site', async () => {
+    expect((await json('GET', '/api/health', undefined, { host: 'attacker.example:3000' })).status).toBe(403);
+    expect((await json('POST', '/api/projects', { name: 'bad' }, { host: 'attacker.example:3000', origin: 'http://attacker.example:3000' })).status).toBe(403);
+    expect((await json('GET', '/api/health', undefined, { host: '127.0.0.1:3000' })).status).toBe(200);
+    expect((await json('GET', '/api/health', undefined, { host: 'app:3000' })).status).toBe(200);
   });
 
   it('rejects cross-origin writes (CSRF guard)', async () => {
