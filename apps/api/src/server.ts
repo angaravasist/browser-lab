@@ -44,7 +44,8 @@ export async function buildApp(cfg: Config = loadConfig()) {
   const localHosts = new Set(['localhost', '127.0.0.1', '[::1]', 'app']);
   const proxyHosts = new Set(cfg.publicOrigins.map((origin) => new URL(origin).hostname.toLowerCase()));
   const allowedHost = (rawHost: string | undefined): boolean => {
-    if (!rawHost || /[\\s,@/\\\\]/.test(rawHost)) return false;
+    // Reject malformed Host values without accidentally matching ordinary letters (e.g. the "s" in localhost).
+    if (!rawHost || /\s/.test(rawHost) || ['@', '/', '\\', '#', '?', ','].some((part) => rawHost.includes(part))) return false;
     try {
       const hostname = new URL(`http://${rawHost}`).hostname.toLowerCase();
       return localHosts.has(hostname) || proxyHosts.has(hostname);
