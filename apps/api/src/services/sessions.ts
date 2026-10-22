@@ -321,6 +321,9 @@ export class SessionService {
   trackSocket(id: string, close: () => void) {
     const live = this.live.get(id);
     if (!live) { close(); return () => undefined; }
+    // One controlling viewer per desktop: a new viewer (e.g. a pop-out tab) takes over from the previous one.
+    live.sockets.forEach((c) => c());
+    live.sockets.clear();
     live.sockets.add(close);
     return () => live.sockets.delete(close);
   }
