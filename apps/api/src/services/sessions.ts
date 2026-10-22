@@ -68,8 +68,8 @@ export class SessionService {
       fail(code, build.reason);
     }
     const gridUrl = this.catalog.gridUrl(entry);
-    if (input.projectId) this.db.prepare('SELECT id FROM projects WHERE id = ?').get(input.projectId) ?? fail('NOT_FOUND', 'Project not found.');
-    if (input.environmentId) this.db.prepare('SELECT id FROM environments WHERE id = ? AND project_id IS ?').get(input.environmentId, input.projectId ?? null) ?? fail('NOT_FOUND', 'Environment not found in this project.');
+    if (input.projectId && !this.db.prepare('SELECT id FROM projects WHERE id = ?').get(input.projectId)) fail('NOT_FOUND', 'Project not found.');
+    if (input.environmentId && !this.db.prepare('SELECT id FROM environments WHERE id = ? AND project_id IS ?').get(input.environmentId, input.projectId ?? null)) fail('NOT_FOUND', 'Environment not found in this project.');
 
     const id = uuid();
     // Capacity check and reservation in one transaction: two concurrent launches cannot both take the last slot.
@@ -130,7 +130,7 @@ export class SessionService {
       let navError: string | null = null;
       try { await driver.get(url); } catch (e) { navError = `Navigation failed: ${(e as Error).message.split('\n')[0]}. The browser is running; troubleshoot manually.`; }
       if (live.cancelled || !this.transition(id, 'running', { navigation_error: navError, last_activity_at: now() })) { await this.quietQuit(driver); this.release(id); return; }
-      live.keepalive = setInterval(() => this.keepalive(id), this.cfg.keepaliveMs);
+      live.keepalive = setInterval(() => this.keepalive(id).catch((e) => this.log.warn({ session: id, err: (e as Error).message }, 'keepalive failed')), this.cfg.keepaliveMs);
       this.log.info({ session: id, build: entry.id, url: redactUrl(url) }, 'session running');
     } catch (e) {
       await startFail('GRID_UNAVAILABLE', `Browser started but setup failed: ${(e as Error).message.split('\n')[0]}`);
@@ -165,6 +165,7 @@ export class SessionService {
     try {
       live.currentUrl = await live.driver.getCurrentUrl();
     } catch (e) {
+      if (this.live.get(id) !== live) return; // session already ended or service shutting down
       const r = this.row(id);
       if (r.state !== 'running') return;
       clearInterval(live.keepalive);
