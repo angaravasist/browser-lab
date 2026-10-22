@@ -229,6 +229,10 @@ describe('live viewer relay', () => {
   it('rejects DNS-rebinding Host headers even when Origin appears same-site', async () => {
     expect((await json('GET', '/api/health', undefined, { host: 'attacker.example:3000' })).status).toBe(403);
     expect((await json('POST', '/api/projects', { name: 'bad' }, { host: 'attacker.example:3000', origin: 'http://attacker.example:3000' })).status).toBe(403);
+    expect((await json('GET', '/api/health', undefined, { host: 'localhost:3000' })).status).toBe(200);
+    expect((await json('GET', '/api/health', undefined, { host: 'localhosT:3000' })).status).toBe(200);
+    expect((await json('GET', '/api/health', undefined, { host: 'localhost.attacker.example:3000' })).status).toBe(403);
+    expect((await json('GET', '/api/health', undefined, { host: 'localhost@attacker.example:3000' })).status).toBe(403);
     expect((await json('GET', '/api/health', undefined, { host: '127.0.0.1:3000' })).status).toBe(200);
     expect((await json('GET', '/api/health', undefined, { host: 'app:3000' })).status).toBe(200);
   });
