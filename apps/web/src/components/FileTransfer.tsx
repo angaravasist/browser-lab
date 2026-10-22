@@ -25,7 +25,7 @@ export function FileTransfer({ sessionId, uploads, downloads, attached }: { sess
       {uploads ? (
         <div>
           <label className="field">Stage a file for upload <input type="file" onChange={(e) => upload(e.target.files?.[0])} /></label>
-          <small className="muted">The file is copied into this session's browser container only and deleted when the session ends. In the remote page, open the file chooser, press Ctrl+L and paste the path below.</small>
+          <small className="muted">The file is copied into this session's browser container only and deleted when the session ends. In the remote page, open the file chooser, press Ctrl+L and type the path below (or send it with the viewer's Clipboard box and press Ctrl+V).</small>
           {staged.map((s) => (
             <p key={s.remotePath}><code>{s.remotePath}</code> <button onClick={() => navigator.clipboard?.writeText(s.remotePath)}>Copy path</button></p>
           ))}

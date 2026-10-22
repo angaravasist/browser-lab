@@ -1,0 +1,15 @@
+name: Browser version request or report
+description: Request a browser version, or report a version that starts but does not match
+labels: [browser-catalogue]
+body:
+  - type: input
+    id: version
+    attributes: { label: Browser, channel and version, placeholder: "Google Chrome 112 stable / Firefox 128 ESR" }
+    validations: { required: true }
+  - type: input
+    id: platform
+    attributes: { label: OS / CPU, placeholder: Linux amd64 }
+    validations: { required: true }
+  - type: textarea
+    id: source
+    attributes: { label: Trusted source, description: Official image tag/digest or vendor download URL, and how you checked the real executable version (see docs/ADD-BROWSER-VERSION.md). }

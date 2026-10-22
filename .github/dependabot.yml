@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    groups: { minor-and-patch: { update-types: [minor, patch] } }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+  # Base images only. Browser images are pinned deliberately in browser-images/catalog.json; update them by
+  # following docs/ADD-BROWSER-VERSION.md so each new version is verified before use.
+  - package-ecosystem: docker
+    directory: /docker
+    schedule: { interval: weekly }
