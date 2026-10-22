@@ -1,0 +1,3 @@
+self-hosted-runner:
+  # Optional Mac with Safari 16 for the Safari job (docs/SAFARI-WORKER.md).
+  labels: [macos-safari16]

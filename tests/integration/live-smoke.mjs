@@ -63,6 +63,17 @@ await connectRfb(`${BASE.replace(/^http/, 'ws')}/api/sessions/${s.id}/live?token
 
 const rfb = await viewer(s.id);
 check(rfb.width > 0, `live desktop ${rfb.width}x${rfb.height} via BrowserLab relay`);
+if (build.family === 'safari') {
+  // Safari blocks input to WebDriver-controlled windows (glass pane); manual control needs a human handover.
+  const shotS = await api('POST', `/api/sessions/${s.id}/screenshot`, { caption: 'safari smoke' });
+  check(shotS.sha256, 'WebDriver screenshot before handover');
+  rfb.close();
+  await api('DELETE', `/api/sessions/${s.id}`);
+  console.log(`\nPARTIAL: ${step} automated checks for ${a.catalog}. Manual handover NOT verified.`);
+  console.log('Next: launch Safari from the UI, take manual control (docs/SAFARI-WORKER.md), type/click/scroll, capture the desktop,');
+  console.log('then record interactiveVerifiedAt in browser-images/catalog.json only if all of that worked.');
+  process.exit(2);
+}
 const target = [0x11, 0xc9, 0x5d];
 const px = await waitFor(async () => { const p = await rfb.pixel(1100, 500); return near(p, target) ? p : null; }, 'fixture colour on the VNC desktop', 15_000);
 check(near(px, target), 'WebDriver page is the page on the VNC desktop (colour marker)');

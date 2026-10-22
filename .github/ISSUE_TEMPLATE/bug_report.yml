@@ -1,0 +1,25 @@
+name: Bug report
+description: Something in BrowserLab does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include passwords, tokens, screenshots of private data or real personal data. Security issues go to the Security tab (private reporting).
+  - type: textarea
+    id: what
+    attributes: { label: What happened and what did you expect?, description: Include the error code shown (e.g. GRID_UNAVAILABLE). }
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes: { label: Steps to reproduce }
+    validations: { required: true }
+  - type: input
+    id: host
+    attributes: { label: Host, description: "OS, CPU (amd64/arm64), Docker Desktop/Engine version", placeholder: "Windows 11 x64, Docker Desktop 4.x" }
+    validations: { required: true }
+  - type: input
+    id: build
+    attributes: { label: Browser build, description: Catalogue id from Browser environments, placeholder: chrome-109-linux-amd64 }
+  - type: textarea
+    id: doctor
+    attributes: { label: Output of `npm run doctor`, render: text }

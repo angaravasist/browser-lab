@@ -32,7 +32,10 @@ for (const name of ['app', 'grid']) {
 try {
   const h = await (await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(5000) })).json();
   ok(`API healthy, database ${h.db}, Selenium Grid ${h.gridRelease}`);
-  for (const w of h.workers) w.status === 'ready' ? ok(`worker "${w.name}" ready (${w.os} ${w.arch}, ${w.slots} slots)`) : bad(w.code ?? 'WORKER_OFFLINE', `worker "${w.name}" is ${w.status}.`, 'Check BROWSERLAB_GRID_URLS and the worker logs.');
+  for (const w of h.workers) {
+    if (w.status === 'ready') ok(`worker "${w.name}" ready (${w.os} ${w.arch}, ${w.slots} slots)`);
+    else bad(w.code ?? 'WORKER_OFFLINE', `worker "${w.name}" is ${w.status}.`, 'Check BROWSERLAB_GRID_URLS and the worker logs.');
+  }
   const { builds } = await (await fetch(`http://127.0.0.1:${port}/api/browser-builds`)).json();
   for (const b of builds) info(`${b.availability.padEnd(24)} ${b.brand} ${b.requestedVersion}${b.channel === 'esr' ? ' ESR' : ''} (${b.id})${b.availability === 'ready' ? '' : ` — ${b.reason}`}`);
   if (!builds.some((b) => b.availability === 'ready')) bad('VERSION_UNAVAILABLE', 'No browser build is ready.', 'docker compose logs grid');
