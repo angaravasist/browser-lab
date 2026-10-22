@@ -1,0 +1,27 @@
+# EXAMPLE (copy to compose.remote-workers.yaml and edit). Connects BrowserLab to remote workers over SSH so that
+# no WebDriver or VNC port is ever published on the LAN.
+#   docker compose -f compose.yaml -f compose.remote-workers.yaml up -d --build
+# Prepare ./secrets/ssh (never commit it): id_ed25519 (a key dedicated to this purpose) and known_hosts
+# containing the workers' host keys (ssh-keyscan, then verify fingerprints out of band).
+# Then in .env:
+#   BROWSERLAB_GRID_URLS=local=http://grid:4444,amd64=http://amd64-tunnel:4444,mac=http://mac-tunnel:4444
+#   BROWSERLAB_SAFARI_VNC=mac-tunnel:5900
+#   BROWSERLAB_SAFARI_VNC_PASSWORD=<the Mac's Screen Sharing VNC password>
+services:
+  # Dedicated Linux amd64 worker running compose.worker-amd64.yaml (Grid bound to its 127.0.0.1:4444).
+  amd64-tunnel:
+    build: { context: ., dockerfile: docker/Dockerfile.tunnel }
+    image: browserlab/tunnel:local
+    restart: unless-stopped
+    command: ["-L", "0.0.0.0:4444:127.0.0.1:4444", "browserlab@amd64-worker.lan"]
+    volumes: ["./secrets/ssh:/ssh:ro"]
+    networks: [browserlab]
+
+  # Safari Mac (docs/SAFARI-WORKER.md): Selenium server on 127.0.0.1:4444, Screen Sharing on 127.0.0.1:5900.
+  mac-tunnel:
+    build: { context: ., dockerfile: docker/Dockerfile.tunnel }
+    image: browserlab/tunnel:local
+    restart: unless-stopped
+    command: ["-L", "0.0.0.0:4444:127.0.0.1:4444", "-L", "0.0.0.0:5900:127.0.0.1:5900", "browserlab@safari-mac.lan"]
+    volumes: ["./secrets/ssh:/ssh:ro"]
+    networks: [browserlab]

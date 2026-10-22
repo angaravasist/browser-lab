@@ -1,0 +1,24 @@
+# Static worker mode: no Docker socket anywhere.
+#   docker compose -f compose.yaml -f compose.static.yaml up -d
+# For hosts where socket mounts are forbidden (e.g. Docker Desktop Enhanced Container Isolation, corporate policy).
+# Trade-off: one long-lived browser container serves one session at a time. Each WebDriver session still gets a fresh
+# browser profile and Grid deletes its download folder, but the container itself is reused between sessions.
+# To add another browser in this mode, add a similar service and its URL to BROWSERLAB_GRID_URLS (docs/ADD-BROWSER-VERSION.md).
+services:
+  grid:
+    build: !reset null
+    image: selenium/standalone-firefox:149.0-geckodriver-0.37-grid-4.51.0-20261010@sha256:755de91a6bd5a88e14852a5f23ee2e10ecaec3d6dabf2f61b25c779b8c389ce3
+    volumes: !reset []
+    shm_size: 2gb
+    environment: !override
+      SE_NODE_MAX_SESSIONS: "1"
+      SE_NODE_OVERRIDE_MAX_SESSIONS: "true"
+      SE_NODE_SESSION_TIMEOUT: "300"
+      SE_NODE_ENABLE_MANAGED_DOWNLOADS: "true"
+      SE_NODE_STEREOTYPE_EXTRA: '{"browserlab:catalogId": "firefox-149-linux"}'
+      SE_REJECT_UNSUPPORTED_CAPS: "true"
+      SE_NODE_GRID_URL: http://grid:4444
+      SE_VNC_NO_PASSWORD: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:4444/status | grep -q '\"ready\": true'"]
+      start_period: 120s

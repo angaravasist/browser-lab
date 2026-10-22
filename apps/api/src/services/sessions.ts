@@ -67,7 +67,7 @@ export class SessionService {
       const code = ({ 'unsupported-architecture': 'UNSUPPORTED_ARCH', offline: 'WORKER_OFFLINE', busy: 'NO_SESSION_CAPACITY', 'verification-failed': 'BROWSER_VERSION_MISMATCH' } as const)[build.availability as 'offline'] ?? 'BROWSER_NOT_PROVISIONED';
       fail(code, build.reason);
     }
-    const gridUrl = this.catalog.gridUrl(entry);
+    const gridUrl = this.catalog.gridUrl(build.worker);
     if (input.projectId && !this.db.prepare('SELECT id FROM projects WHERE id = ?').get(input.projectId)) fail('NOT_FOUND', 'Project not found.');
     if (input.environmentId && !this.db.prepare('SELECT id FROM environments WHERE id = ? AND project_id IS ?').get(input.environmentId, input.projectId ?? null)) fail('NOT_FOUND', 'Environment not found in this project.');
 
@@ -80,7 +80,7 @@ export class SessionService {
       if (forEntry >= entry.maxConcurrentSessions) fail('NO_SESSION_CAPACITY', `${entry.brand} ${entry.requestedVersion} allows ${entry.maxConcurrentSessions} concurrent session(s).`);
       const t = now();
       this.db.prepare(`INSERT INTO sessions (id, project_id, environment_id, browser_build_id, worker_id, target_url, requested_version, state, started_at, last_activity_at, viewport_width, viewport_height, build_label, tester)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)`).run(id, input.projectId ?? null, input.environmentId ?? null, entry.id, entry.worker, url.url,
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)`).run(id, input.projectId ?? null, input.environmentId ?? null, entry.id, build.worker, url.url,
         `${entry.requestedVersion}${entry.channel === 'esr' ? ' ESR' : ''}`, t, t, input.viewport.width, input.viewport.height, input.buildLabel ?? null, input.tester ?? null);
     })();
     this.live.set(id, { gridUrl, entry, sockets: new Set() });
@@ -205,7 +205,7 @@ export class SessionService {
       try { await Promise.race([live.driver.quit(), new Promise((_, rej) => setTimeout(() => rej(new Error('quit timed out')), 20_000))]); }
       catch (e) { quitError = (e as Error).message.split('\n')[0]; }
     }
-    if ((quitError || !live?.driver) && r.grid_session_id) await deleteGridSession(live?.gridUrl ?? this.catalog.gridUrl(this.catalog.get(r.browser_build_id)), r.grid_session_id);
+    if ((quitError || !live?.driver) && r.grid_session_id) await deleteGridSession(live?.gridUrl ?? this.catalog.gridUrl(r.worker_id), r.grid_session_id);
     const detachedSafari = r.driver_state === 'detached';
     const ok = this.transition(id, quitError && !detachedSafari && final === 'completed' ? 'closed-with-error' : final, {
       driver_state: 'none',

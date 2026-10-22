@@ -1,0 +1,47 @@
+# Run THIS file on a dedicated Linux amd64 machine to host historical Chrome/Edge/Firefox ESR builds for a
+# BrowserLab installed elsewhere (for example on an Apple Silicon laptop). No BrowserLab app runs here.
+#   docker compose -f compose.worker-amd64.yaml up -d --build
+# The Grid listens on this machine's loopback only; BrowserLab reaches it through an SSH tunnel
+# (compose.remote-workers.example.yaml). Never publish 4444 on the LAN: WebDriver and VNC are unauthenticated.
+name: browserlab-worker
+
+services:
+  firefox-esr-image:
+    build: { context: browser-images/custom/firefox-115esr }
+    image: browserlab/standalone-firefox:115.43.1esr-grid-4.51.0-20261010
+    platform: linux/amd64
+    entrypoint: ["true"]
+    restart: "no"
+    network_mode: none
+
+  grid:
+    build: { context: ., dockerfile: docker/Dockerfile.grid }
+    image: browserlab/grid:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:4444:4444"
+    volumes:
+      # SECURITY: host-root-equivalent; only this upstream Selenium container gets it.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - grid-assets:/opt/selenium/assets
+    environment:
+      BROWSERLAB_GRID_PROFILE: legacy
+      SE_DYNAMIC_MAX_SESSIONS: ${BROWSERLAB_MAX_CONCURRENT_SESSIONS:-2}
+      SE_DYNAMIC_OVERRIDE_MAX_SESSIONS: "true"
+      # The VNC route is served by this Grid; keep the URL internal to this machine.
+      SE_NODE_GRID_URL: http://grid:4444
+      SE_SESSION_REQUEST_TIMEOUT: "180"
+      SE_VNC_NO_PASSWORD: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      firefox-esr-image: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:4444/status | grep -q '\"ready\": true'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 900s
+
+volumes:
+  grid-assets:
