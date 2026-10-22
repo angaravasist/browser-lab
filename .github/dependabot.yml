@@ -4,6 +4,12 @@ updates:
     directory: /
     schedule: { interval: weekly }
     groups: { minor-and-patch: { update-types: [minor, patch] } }
+    ignore:
+      # Node.js stays on the 24 LTS line; TypeScript stays on 6.x until typescript-eslint supports 7.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
@@ -12,3 +18,9 @@ updates:
   - package-ecosystem: docker
     directory: /docker
     schedule: { interval: weekly }
+    ignore:
+      # Only Node.js LTS lines; move to the next LTS deliberately.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+      # The Grid release must match the pinned browser images; upgrade both together (docs/ADD-BROWSER-VERSION.md).
+      - dependency-name: 'selenium/*'
