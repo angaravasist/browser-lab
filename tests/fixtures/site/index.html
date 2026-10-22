@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BrowserLab fixture</title>
+  <link rel="stylesheet" href="fixture.css">
+</head>
+<body>
+  <main>
+    <h1>BrowserLab compatibility fixture</h1>
+    <p>A generic page for checking keyboard, mouse, forms, navigation, tabs, scrolling, uploads and downloads. No real data.</p>
+
+    <form id="form" action="page2.html" method="get" autocomplete="off">
+      <label>Name <input id="name" name="name"></label>
+      <label>Choice
+        <select id="choice" name="choice"><option>Alpha</option><option>Beta</option><option>Gamma</option></select>
+      </label>
+      <label><input type="checkbox" id="agree"> I agree</label>
+      <label>Attachment <input type="file" id="file"></label>
+      <button type="submit">Submit</button>
+    </form>
+    <output id="status" aria-live="polite">Waiting for input.</output>
+
+    <nav>
+      <a id="next" href="page2.html">Go to page 2</a>
+      <a id="newtab" href="page2.html" target="_blank" rel="noopener">Open page 2 in a new tab</a>
+      <a id="download" href="sample-download.txt" download>Download sample file</a>
+    </nav>
+
+    <div id="marker" aria-hidden="true"></div>
+    <section class="tall"><p id="bottom">Bottom of the scroll area.</p></section>
+  </main>
+  <script src="fixture.js"></script>
+</body>
+</html>
