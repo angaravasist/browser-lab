@@ -72,6 +72,15 @@ describe('session lifecycle against a stub grid', () => {
     expect((await json('GET', '/api/reports?outcome=passed')).body).toHaveLength(1);
   });
 
+  it('close: a failed quit is clean if the Grid released the browser, an error if it did not', async () => {
+    grid.deleteFailure = 'released';
+    const a = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
+    expect((await json('DELETE', `/api/sessions/${a.id}`)).body).toMatchObject({ state: 'completed', failureCode: null });
+    grid.deleteFailure = 'stuck';
+    const b = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
+    expect((await json('DELETE', `/api/sessions/${b.id}`)).body).toMatchObject({ state: 'closed-with-error', failureCode: 'GRID_UNAVAILABLE' });
+  });
+
   it('identity mismatch stops the browser and marks verification-failed, never passed', async () => {
     esrServedByRelease = true;
     const r = await launch('firefox-115esr-linux-amd64');

@@ -19,6 +19,8 @@ export interface StubGrid {
   requests: Array<{ method: string; path: string; body: any }>;
   sessions: Map<string, { catalogId: string; url: string; alive: boolean; windows: string[]; current: string }>;
   vncFrames: Buffer[];
+  /** Simulates a failing WebDriver DELETE: 'released' still frees the browser, 'stuck' leaves it running. */
+  deleteFailure?: 'released' | 'stuck';
   kill(sessionId: string): void;
   close(): Promise<void>;
 }
@@ -31,6 +33,7 @@ export async function startStubGrid(opts: StubOptions): Promise<StubGrid> {
   const vncFrames: Buffer[] = [];
   const downloads = new Map<string, Record<string, Buffer>>();
   let n = 0;
+  const stub = {} as StubGrid;
   const server = http.createServer(async (req, res) => {
     let raw = '';
     for await (const c of req) raw += c;
@@ -55,7 +58,11 @@ export async function startStubGrid(opts: StubOptions): Promise<StubGrid> {
     if (!m) return send(404, { error: 'unknown command', message: path, stacktrace: '' });
     const s = sessions.get(m[1]);
     const sub = m[2] ?? '';
-    if (req.method === 'DELETE' && !sub) { if (s) s.alive = false; return send(200, null); }
+    if (req.method === 'DELETE' && !sub) {
+      if (stub.deleteFailure) { if (s && stub.deleteFailure === 'released') s.alive = false; return send(500, { error: 'unknown error', message: 'quit failed', stacktrace: '' }); }
+      if (s) s.alive = false;
+      return send(200, null);
+    }
     if (!s || !s.alive) return noSession();
     const catalogId = s.catalogId;
     switch (`${req.method} ${sub}`) {
@@ -101,9 +108,10 @@ export async function startStubGrid(opts: StubOptions): Promise<StubGrid> {
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const { port } = server.address() as { port: number };
-  return {
+  Object.assign(stub, {
     url: `http://127.0.0.1:${port}`, requests, sessions, vncFrames,
-    kill: (id) => { const s = sessions.get(id); if (s) s.alive = false; },
-    close: () => new Promise((r) => { wss.clients.forEach((c) => c.terminate()); server.closeAllConnections(); server.close(() => r()); }),
-  };
+    kill: (id: string) => { const s = sessions.get(id); if (s) s.alive = false; },
+    close: () => new Promise<void>((r) => { wss.clients.forEach((c) => c.terminate()); server.closeAllConnections(); server.close(() => r()); }),
+  });
+  return stub;
 }
