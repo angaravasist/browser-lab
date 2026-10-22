@@ -1,0 +1,9 @@
+Google LLC
+Copyright 2026 Google LLC. All rights reserved.
+Google Chrome	109.0.5414.119 (Official Build) (64-bit) 
+Revision	772095164c7d5d4e73160f858efed3b5e87eca83-refs/branch-heads/5414@{#1458}
+OS	Linux
+JavaScript	V8 10.9.194.10
+User Agent	Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36
+Command Line	/opt/google/chrome/google-chrome-base --no-sandbox --enable-automation --test-type=webdriver
+Executable Path	/opt/google/chrome/google-chrome

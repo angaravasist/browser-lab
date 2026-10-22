@@ -1,0 +1,11 @@
+body { font: 18px/1.5 system-ui, sans-serif; margin: 0; color: #1b1f24; background: var(--bg, #fff); }
+main { padding: 16px 24px; }
+form { display: grid; gap: 10px; max-width: 520px; }
+label { display: grid; gap: 4px; }
+input, select, button { font: inherit; padding: 6px 8px; }
+nav { display: flex; gap: 16px; margin: 16px 0; flex-wrap: wrap; }
+#status { display: block; margin-top: 8px; font-weight: 600; }
+/* ?color=rrggbb paints the page so tests can prove WebDriver and the VNC desktop show the same browser. */
+#marker { height: 160px; background: var(--bg, #e9edf1); }
+.tall { height: 2400px; background: var(--bg, linear-gradient(#fff, #dde3ea)); display: flex; align-items: flex-end; }
+.big { position: fixed; left: 0; right: 0; top: 160px; bottom: 0; display: grid; place-items: center; background: #dfe9f5; color: #1b1f24; }

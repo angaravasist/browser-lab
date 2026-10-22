@@ -1,0 +1,2 @@
+BrowserLab sample download file.
+If you can read this after downloading, downloads work.
