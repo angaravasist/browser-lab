@@ -243,6 +243,24 @@ describe('live viewer relay', () => {
   });
 });
 
+describe('API-wide rate limiting', () => {
+  it('throttles repeated expensive reads by peer IP, ignoring spoofed forwarded IPs', async () => {
+    await app.close();
+    app = await makeApp({ BROWSERLAB_RATE_LIMIT_MAX: '2' });
+    expect((await json('GET', '/api/health', undefined, { 'x-forwarded-for': '198.51.100.1' })).status).toBe(200);
+    expect((await json('GET', '/api/health', undefined, { 'x-forwarded-for': '198.51.100.2' })).status).toBe(200);
+    const third = await json('GET', '/api/health', undefined, { 'x-forwarded-for': '198.51.100.3' });
+    expect(third.status).toBe(429);
+    expect(Number(third.raw.headers['retry-after'])).toBeGreaterThanOrEqual(1);
+  });
+
+  it('validates the request quota and window configuration', () => {
+    expect(() => loadConfig({ BROWSERLAB_RATE_LIMIT_MAX: '0' })).toThrow(/RATE_LIMIT_MAX/);
+    expect(() => loadConfig({ BROWSERLAB_RATE_LIMIT_MAX: 'bogus' })).toThrow(/RATE_LIMIT_MAX/);
+    expect(() => loadConfig({ BROWSERLAB_RATE_LIMIT_WINDOW_MS: '0' })).toThrow(/RATE_LIMIT_WINDOW_MS/);
+  });
+});
+
 describe('projects, policy, matrix, import/export', () => {
   it('CRUD with one default environment, policy matrix with honest availability, round-trip export', async () => {
     const p = (await json('POST', '/api/projects', { name: 'Demo', description: 'generic' })).body;

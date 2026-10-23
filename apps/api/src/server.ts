@@ -1,5 +1,6 @@
 import Fastify, { type FastifyRequest } from 'fastify';
 import websocket from '@fastify/websocket';
+import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -87,6 +88,15 @@ export async function buildApp(cfg: Config = loadConfig()) {
     return reply.code(500).send({ error: { code: 'INTERNAL', message: 'Internal error; see server logs.' } });
   });
 
+  // Fastify's global rate limiter protects all API and fixture routes, including
+  // SQLite reads, reports, screenshots, uploads and browser session operations.
+  // Register after the Host/Origin guard so rejected hosts never reach the limiter.
+  await app.register(rateLimit, {
+    global: true,
+    hook: 'onRequest',
+    max: cfg.rateLimitMax,
+    timeWindow: cfg.rateLimitWindowMs,
+  });
   await app.register(websocket, { options: { maxPayload: 1024 * 1024 } });
   healthRoutes(app, ctx);
   buildRoutes(app, ctx);

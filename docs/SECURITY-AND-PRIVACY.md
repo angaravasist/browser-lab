@@ -28,6 +28,16 @@ Docker host.** Boundaries BrowserLab enforces and tests (`npm run test:grid`):
 
 Where this is not acceptable, use `compose.static.yaml`: no socket is mounted anywhere.
 
+## Rate limiting
+
+Every route is guarded by a Fastify global rate limiter (600 requests per
+minute per peer by default, with HTTP 429 and Retry-After over quota).
+`BROWSERLAB_RATE_LIMIT_MAX` and `BROWSERLAB_RATE_LIMIT_WINDOW_MS`
+adjust the limits. Fastify does not trust client-supplied forwarded IP headers
+by default. The plugin is pinned to the patched 11.2.0 line, which normalizes
+IPv6 prefixes. Rate limiting is in-memory per process: keep BrowserLab local
+and do not mistake these limits for authentication or a distributed defense.
+
 ## Network exposure
 
 Published by default: `127.0.0.1:3000` only. Never published: Selenium Grid/WebDriver (4444), VNC (5900/7900), the Docker
