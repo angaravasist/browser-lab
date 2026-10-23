@@ -21,6 +21,8 @@ export interface StubGrid {
   vncFrames: Buffer[];
   /** Simulates a failing WebDriver DELETE: 'released' still frees the browser, 'stuck' leaves it running. */
   deleteFailure?: 'released' | 'stuck';
+  /** Simulates a page alert/confirm: commands that handle prompts fail, tab listing still works. */
+  alertOpen?: boolean;
   kill(sessionId: string): void;
   close(): Promise<void>;
 }
@@ -66,15 +68,16 @@ export async function startStubGrid(opts: StubOptions): Promise<StubGrid> {
     if (!s || !s.alive) return noSession();
     const catalogId = s.catalogId;
     switch (`${req.method} ${sub}`) {
-      case 'GET /window': return send(200, s.current);
+      case 'GET /window/handles': return send(200, s.windows);
+      case 'GET /window': return s.windows.includes(s.current) ? send(200, s.current) : send(404, { error: 'no such window', message: 'target window already closed', stacktrace: '' });
       case 'POST /window/new': { const h = `w${s.windows.length + 1}`; s.windows.push(h); return send(200, { handle: h, type: 'tab' }); }
       case 'POST /window': s.current = body.handle; return send(200, null);
       case 'DELETE /window': s.windows = s.windows.filter((w) => w !== s.current); return send(200, s.windows);
       case 'POST /url': s.url = body.url; return send(200, null);
-      case 'GET /url': return send(200, s.url);
+      case 'GET /url': return stub.alertOpen ? send(500, { error: 'unexpected alert open', message: 'unexpected alert open: {Alert text : Delete?}', stacktrace: '' }) : send(200, s.url);
       case 'POST /timeouts': return send(200, null);
       case 'POST /window/rect': return send(200, { x: 0, y: 0, width: body.width ?? 1440, height: body.height ?? 900 });
-      case 'GET /screenshot': return send(200, PNG.toString('base64'));
+      case 'GET /screenshot': return stub.alertOpen ? send(500, { error: 'unexpected alert open', message: 'unexpected alert open: {Alert text : Delete?}', stacktrace: '' }) : send(200, PNG.toString('base64'));
       case 'POST /se/file': {
         const z = await JSZip.loadAsync(Buffer.from(body.file, 'base64'));
         return send(200, `/tmp/stub-upload/${Object.keys(z.files)[0]}`);

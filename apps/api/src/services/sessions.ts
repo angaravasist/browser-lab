@@ -165,7 +165,8 @@ export class SessionService {
     const live = this.live.get(id);
     if (!live?.driver) return;
     try {
-      live.currentUrl = await live.driver.getCurrentUrl();
+      await this.followWindow(live.driver);
+      try { live.currentUrl = await live.driver.getCurrentUrl(); } catch { /* a dialog is open in the page: keep the last URL */ }
     } catch (e) {
       if (this.live.get(id) !== live) return; // session already ended or service shutting down
       const r = this.row(id);
@@ -180,6 +181,17 @@ export class SessionService {
       this.log.warn({ session: id, err: (e as Error).message.split('\n')[0] }, 'browser lost');
       await this.end(id, 'interrupted', 'SESSION_INTERRUPTED', 'The browser or its worker stopped responding. Any saved result and evidence are kept; nothing was marked passed.');
     }
+  }
+
+  /**
+   * Fails only if the browser is really gone. Listing tabs is unaffected by open alert/confirm dialogs, and if the
+   * user closed the tab BrowserLab started in, WebDriver follows their newest remaining tab.
+   */
+  private async followWindow(driver: Driver) {
+    const handles = await driver.getAllWindowHandles();
+    if (!handles.length) throw new Error('all browser windows were closed');
+    const current = await driver.getWindowHandle().catch(() => null);
+    if (!current || !handles.includes(current)) await driver.switchTo().window(handles[handles.length - 1]);
   }
 
   heartbeat(id: string) {
@@ -245,6 +257,7 @@ export class SessionService {
   async setViewport(id: string, vp: { width: number; height: number }) {
     const { driver, live } = this.runningDriver(id);
     if (!live.entry.capabilities.windowResize) fail('INVALID_REQUEST', 'This browser build does not support window resizing.');
+    await this.followWindow(driver);
     await this.applyViewport(id, driver, vp);
     this.touch(id);
     return this.view(id);
@@ -253,7 +266,14 @@ export class SessionService {
   async screenshot(id: string, caption?: string) {
     const { driver, row } = this.runningDriver(id);
     let data: Buffer;
-    try { data = Buffer.from(await driver.takeScreenshot(), 'base64'); } catch (e) { return fail('EVIDENCE_CAPTURE_FAILED', `Screenshot failed: ${(e as Error).message.split('\n')[0]}`); }
+    try {
+      await this.followWindow(driver);
+      data = Buffer.from(await driver.takeScreenshot(), 'base64');
+    } catch (e) {
+      const msg = (e as Error).message.split('\n')[0];
+      if (/alert/i.test(msg)) fail('EVIDENCE_CAPTURE_FAILED', 'A dialog is open in the page. Answer it first, or use "Capture desktop" to include the dialog.');
+      return fail('EVIDENCE_CAPTURE_FAILED', `Screenshot failed: ${msg}`);
+    }
     this.touch(id);
     return this.evidence.save(id, data, { mime: 'image/png', source: 'webdriver-viewport', caption, actualVersion: row.actual_browser_version, maxBytes: this.cfg.maxScreenshotBytes });
   }
@@ -361,7 +381,9 @@ export class SessionService {
   /** Refreshes the current URL immediately (used by GET /sessions/:id when asked). */
   async refreshUrl(id: string) {
     const live = this.live.get(id);
-    if (live?.driver && this.row(id).state === 'running') { try { live.currentUrl = await live.driver.getCurrentUrl(); } catch { /* keepalive handles loss */ } }
+    if (live?.driver && this.row(id).state === 'running') {
+      try { await this.followWindow(live.driver); live.currentUrl = await live.driver.getCurrentUrl(); } catch { /* dialog open, or keepalive handles loss */ }
+    }
   }
 
   /** After an API restart no in-memory driver exists: release every Grid session we left behind and say so honestly. */
