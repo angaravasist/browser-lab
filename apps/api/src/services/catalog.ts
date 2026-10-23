@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { CatalogSchema, ACTIVE_STATES, type BrowserBuild, type CatalogEntry, type Family } from '@browserlab/shared';
+import { CatalogSchema, ACTIVE_STATES, EMULATION_LABEL, type BrowserBuild, type CatalogEntry, type Family } from '@browserlab/shared';
 import type { DB } from '../db/index.ts';
 import { now } from '../db/index.ts';
 import type { Config } from '../config.ts';
@@ -62,7 +62,8 @@ export class Catalog {
       const v = verified.get(e.id);
       // Any configured worker that advertises this exact build may serve it (e.g. a dedicated amd64 worker); else the entry's default worker explains why not.
       const worker = Object.entries(statuses).find(([, st]) => !(st instanceof Error) && st.nodes.some((n) => n.slots.some((x) => x.catalogId === e.id)))?.[0] ?? e.worker;
-      const base = { ...e, worker, activeSessions: active.get(e.id) ?? 0, lastVerifiedVersion: v?.actual_version ?? undefined, lastVerifiedAt: v?.last_verified_at ?? undefined };
+      const emulation = this.cfg.emulatedWorkers.has(worker) ? EMULATION_LABEL : undefined;
+      const base = { ...e, worker, emulation, activeSessions: active.get(e.id) ?? 0, lastVerifiedVersion: v?.actual_version ?? undefined, lastVerifiedAt: v?.last_verified_at ?? undefined };
       const s = statuses[worker];
       const at = this.probe ? new Date(this.probe.at).toISOString() : undefined;
       const mk = (availability: BrowserBuild['availability'], reason: string, workerArch?: string): BrowserBuild => ({ ...base, availability, reason, workerArch, lastProbeAt: at });
@@ -83,7 +84,7 @@ export class Catalog {
       if (base.activeSessions >= e.maxConcurrentSessions || totalActive >= this.cfg.maxConcurrent || !node.slots.some((x) => x.catalogId === e.id && !x.busy))
         return mk('busy', 'All sessions for this build are in use. End a session or wait.', arch);
       const validation = e.provider === 'safari-relay' && !e.interactiveVerifiedAt ? 'VALIDATION MODE: not yet verified interactively.' : '';
-      return mk('ready', validation || 'Ready to launch.', arch);
+      return mk('ready', validation || (emulation ? `Ready to launch (${emulation}).` : 'Ready to launch.'), arch);
     });
   }
 

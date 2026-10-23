@@ -21,7 +21,7 @@ export function Environments() {
             <tr key={b.id}>
               <td><b>{b.brand} {b.requestedVersion}</b><br /><small className="muted">{b.id}</small></td>
               <td>{b.channel}</td>
-              <td>{b.platformName} / {b.architectures.join(', ')}{b.workerArch && <><br /><small className="muted">worker is {b.workerArch}</small></>}</td>
+              <td>{b.platformName} / {b.architectures.join(', ')}{b.workerArch && <><br /><small className="muted">worker is {b.workerArch}</small></>}{b.emulation && <><br /><span className="badge b-emulated" title={b.emulation}>Emulated</span></>}</td>
               <td>{b.worker}<br /><small className="muted">{b.activeSessions} active / max {b.maxConcurrentSessions}</small></td>
               <td><StatusBadge value={b.availability} /><br /><small>{b.reason}</small></td>
               <td>{b.lastVerifiedVersion ? <>{b.lastVerifiedVersion}<br /><small className="muted">{new Date(b.lastVerifiedAt!).toLocaleString()}</small></> : <small className="muted">never launched here</small>}</td>

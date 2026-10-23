@@ -38,7 +38,7 @@ export function Results() {
               <td><a href={`#/session/${r.sessionId}`}>{new Date(r.startedAt).toLocaleString()}</a></td>
               <td><StatusBadge value={r.outcome} /></td>
               <td>{r.brand} {r.requestedVersion}</td>
-              <td>{r.actualVersion ?? '—'} {r.verificationOk === false && <StatusBadge value="verification-failed" />}</td>
+              <td>{r.actualVersion ?? '—'} {r.verificationOk === false && <StatusBadge value="verification-failed" />}{r.emulation && <span className="badge b-emulated" title={r.emulation}>Emulated</span>}</td>
               <td>{r.os ?? '—'}/{r.arch ?? '—'}</td>
               <td>{r.project ?? '—'}{r.environment ? ` · ${r.environment}` : ''}</td>
               <td>{r.buildLabel ?? ''}</td>

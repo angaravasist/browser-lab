@@ -48,7 +48,7 @@ Testing an app running on your own computer? Use `http://host.docker.internal:PO
 | Host | Ready out of the box | More |
 |---|---|---|
 | Linux, Windows (WSL2), Intel Mac (amd64) | Firefox 149, Chrome 149, Edge 149 | `-f compose.legacy-amd64.yaml` adds **Google Chrome 109, Microsoft Edge 121, Firefox 115 ESR** (and Firefox 115 release) |
-| Apple Silicon Mac, Linux arm64 | Firefox 149 | Chrome/Edge are amd64-only and are shown as *unsupported architecture*; add a [dedicated amd64 worker](docs/INSTALLATION.md#remote-amd64-worker) |
+| Apple Silicon Mac, Linux arm64 | Firefox 149 | Chrome/Edge are amd64-only and are shown as *unsupported architecture*. On an Apple Silicon Mac, an **opt-in emulated mode** adds Chrome 109, Edge 121 and Firefox 115 ESR, labelled *Emulated* everywhere: [docs/APPLE-SILICON.md](docs/APPLE-SILICON.md). Or add a [dedicated amd64 worker](docs/INSTALLATION.md#remote-amd64-worker). |
 | Safari | — | Needs a real Mac running that Safari version: [docs/SAFARI-WORKER.md](docs/SAFARI-WORKER.md) |
 
 Unavailable builds are labelled with the reason (not provisioned, unsupported architecture, offline, busy, verification

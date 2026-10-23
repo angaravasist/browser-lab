@@ -32,6 +32,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     publicOrigins: (env.BROWSERLAB_PUBLIC_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
     safariVnc: safariVnc ? { host: safariVnc[0], port: Number(safariVnc[1] || 5900) } : null,
     safariVncPassword: env.BROWSERLAB_SAFARI_VNC_PASSWORD || '',
+    /** Workers (BROWSERLAB_GRID_URLS names) that run amd64 images under emulation; their results are labelled. */
+    emulatedWorkers: new Set((env.BROWSERLAB_EMULATED_WORKERS || '').split(',').map((s) => s.trim()).filter(Boolean)),
     catalogPath: env.BROWSERLAB_CATALOG || path.join(repoRoot, 'browser-images/catalog.json'),
     webDist: env.BROWSERLAB_WEB_DIST || path.join(repoRoot, 'apps/web/dist'),
     fixtureDir: env.BROWSERLAB_FIXTURE_DIR || path.join(repoRoot, 'tests/fixtures/site'),

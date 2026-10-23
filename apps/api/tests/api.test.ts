@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
+import { EMULATION_LABEL } from '@browserlab/shared';
 import { buildApp } from '../src/server.ts';
 import { loadConfig } from '../src/config.ts';
 import { parseChromiumVersionPage } from '../src/selenium/verify.ts';
@@ -124,6 +125,32 @@ describe('session lifecycle against a stub grid', () => {
     await app.close();
     app = await makeApp({ BROWSERLAB_GRID_URLS: 'local=http://127.0.0.1:9' });
     expect((await json('GET', '/api/browser-builds')).body.builds[0].availability).toBe('offline');
+  });
+
+  it('labels every result from an emulated worker: builds, session, JSON, CSV and HTML reports', async () => {
+    await app.close();
+    app = await makeApp({ BROWSERLAB_EMULATED_WORKERS: 'local' });
+    const build = (await json('GET', '/api/browser-builds')).body.builds.find((b: any) => b.id === 'chrome-109-linux-amd64');
+    expect(build).toMatchObject({ availability: 'ready', emulation: EMULATION_LABEL });
+    expect(build.reason).toContain('emulated');
+    const s = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
+    expect(s.emulation).toBe(EMULATION_LABEL);
+    expect(s.verification.emulation).toBe(EMULATION_LABEL);
+    await json('POST', `/api/sessions/${s.id}/screenshot`, {});
+    await json('POST', `/api/sessions/${s.id}/result`, { outcome: 'passed' });
+    await json('DELETE', `/api/sessions/${s.id}`);
+    expect((await json('GET', '/api/reports/export?format=json')).body.rows[0].emulation).toBe(EMULATION_LABEL);
+    const csv = (await app.inject({ url: '/api/reports/export?format=csv', headers: { host: 'localhost:3000' } })).body;
+    expect(csv.split('\r\n')[0]).toContain('emulation');
+    expect(csv).toContain(EMULATION_LABEL);
+    const html = (await app.inject({ url: '/api/reports/export?format=html', headers: { host: 'localhost:3000' } })).body;
+    expect(html).toContain(`EMULATED: ${EMULATION_LABEL}`);
+    expect(html).toContain('· EMULATED ·');
+    // Not emulated without the setting.
+    await app.close();
+    app = await makeApp();
+    const plain = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
+    expect(plain.emulation).toBeNull();
   });
 
   it('serves a build from whichever configured worker advertises it (arm64 laptop + amd64 worker)', async () => {

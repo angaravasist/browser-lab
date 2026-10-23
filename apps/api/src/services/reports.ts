@@ -13,7 +13,7 @@ export interface ReportRow {
   sessionId: string; project: string | null; environment: string | null; buildLabel: string | null; targetUrl: string;
   brand: string; catalogId: string; channel: string; requestedVersion: string; actualVersion: string | null;
   os: string | null; arch: string | null; image: string | null; imageDigest: string | null; driverVersion: string | null;
-  verificationLevel: string | null; verificationOk: boolean | null; state: string; outcome: string; notes: string;
+  emulation: string | null; verificationLevel: string | null; verificationOk: boolean | null; state: string; outcome: string; notes: string;
   tester: string | null; startedAt: string; endedAt: string | null; checkedAt: string | null;
   failureCode: string | null; failureMessage: string | null; evidenceCount: number;
 }
@@ -42,7 +42,7 @@ export function queryReport(db: DB, catalog: Catalog, f: ReportFilter): ReportRo
       sessionId: s.id, project: s.project, environment: s.environment, buildLabel: s.build_label, targetUrl: s.target_url,
       brand: e?.brand ?? s.browser_build_id, catalogId: s.browser_build_id, channel: e?.channel ?? '', requestedVersion: s.requested_version,
       actualVersion: s.actual_browser_version, os: s.actual_os, arch: s.actual_arch, image: e?.image ?? null, imageDigest: e?.imageDigest ?? null,
-      driverVersion: v?.capabilities?.driverVersion ?? null, verificationLevel: v?.level ?? null, verificationOk: v ? !!v.ok : null,
+      driverVersion: v?.capabilities?.driverVersion ?? null, emulation: v?.emulation ?? null, verificationLevel: v?.level ?? null, verificationOk: v ? !!v.ok : null,
       state: s.state, outcome: s.outcome ?? 'not-run', notes: s.notes ?? '', tester: s.r_tester ?? s.tester, startedAt: s.started_at, endedAt: s.ended_at,
       checkedAt: s.checked_at, failureCode: s.failure_code, failureMessage: s.failure_message ?? s.navigation_error, evidenceCount: s.evidence_count,
     };
@@ -50,7 +50,7 @@ export function queryReport(db: DB, catalog: Catalog, f: ReportFilter): ReportRo
 }
 
 const COLUMNS: Array<keyof ReportRow> = ['sessionId', 'project', 'environment', 'buildLabel', 'targetUrl', 'brand', 'catalogId', 'channel', 'requestedVersion', 'actualVersion', 'os', 'arch',
-  'image', 'imageDigest', 'driverVersion', 'verificationLevel', 'verificationOk', 'state', 'outcome', 'notes', 'tester', 'startedAt', 'endedAt', 'checkedAt', 'failureCode', 'failureMessage', 'evidenceCount'];
+  'image', 'imageDigest', 'driverVersion', 'emulation', 'verificationLevel', 'verificationOk', 'state', 'outcome', 'notes', 'tester', 'startedAt', 'endedAt', 'checkedAt', 'failureCode', 'failureMessage', 'evidenceCount'];
 
 export function toCsv(rows: ReportRow[]): string {
   const cell = (v: unknown) => {
@@ -74,11 +74,12 @@ export function toHtml(db: DB, evidenceDir: string, rows: ReportRow[], title: st
       if (e.mime_type === 'image/png' && e.byte_size <= budget) {
         try { img = `<img alt="${esc(e.caption || 'screenshot')}" src="data:image/png;base64,${readFileSync(path.join(evidenceDir, e.file_basename)).toString('base64')}">`; budget -= e.byte_size; } catch { img = '<em>file missing</em>'; }
       }
-      return `<figure>${img}<figcaption>${esc(e.caption)} · ${esc(e.source)} · ${esc(e.captured_at)} · sha256 ${esc(e.sha256)}</figcaption></figure>`;
+      return `<figure>${img}<figcaption>${esc(e.caption)} · ${esc(e.source)}${r.emulation ? ' · EMULATED' : ''} · ${esc(e.captured_at)} · sha256 ${esc(e.sha256)}</figcaption></figure>`;
     }).join('');
     return `<section class="${esc(r.outcome)}"><h2>${esc(r.brand)} ${esc(r.requestedVersion)} → <span class="o">${esc(r.outcome.toUpperCase())}</span></h2>
 <table><tr><th>Requested</th><td>${esc(r.brand)} ${esc(r.requestedVersion)} (${esc(r.channel)}) · ${esc(r.catalogId)}</td></tr>
 <tr><th>Actual</th><td>${esc(r.actualVersion ?? 'not started')} · ${esc(r.os)} / ${esc(r.arch)} · driver ${esc(r.driverVersion)}</td></tr>
+${r.emulation ? `<tr><th>Execution</th><td class="emu">EMULATED: ${esc(r.emulation)}. Same browser build, CPU instructions translated; timing may differ from native hardware.</td></tr>` : ''}
 <tr><th>Verification</th><td>${r.verificationOk === null ? 'none' : `${esc(r.verificationLevel)} ${r.verificationOk ? 'matched' : 'MISMATCH'}`}</td></tr>
 <tr><th>Image</th><td>${esc(r.image)} ${esc(r.imageDigest)}</td></tr>
 <tr><th>Target</th><td>${esc(redactUrl(r.targetUrl))}</td></tr>
@@ -91,7 +92,7 @@ ${r.failureMessage ? `<tr><th>Infrastructure note</th><td>${esc(r.failureCode)} 
 <style>body{font:14px/1.45 system-ui,sans-serif;margin:24px;color:#1b1f24}h1{font-size:20px}section{border:1px solid #ccd;border-radius:8px;padding:12px 16px;margin:16px 0;break-inside:avoid}
 th{text-align:left;vertical-align:top;padding:2px 12px 2px 0;white-space:nowrap;color:#444}td{padding:2px 0}pre{white-space:pre-wrap;margin:0;font:inherit}
 img{max-width:100%;border:1px solid #ccd;margin-top:8px}figcaption{font-size:12px;color:#555}.passed .o{color:#176b2c}.failed .o{color:#b3261e}.blocked .o{color:#8a5a00}
-.note{background:#f4f6f8;padding:8px 12px;border-radius:6px}</style></head><body>
+.emu{color:#8a5a00;font-weight:700}.note{background:#f4f6f8;padding:8px 12px;border-radius:6px}</style></head><body>
 <h1>${esc(title)}</h1><p class="note">Generated ${esc(new Date().toISOString())} by BrowserLab. "Actual" values were read from the running browser (WebDriver capabilities and the browser's own version page). Infrastructure failures are not site failures; untested combinations are not shown as passed. ${rows.length} session(s).</p>
 ${body || '<p>No sessions match.</p>'}</body></html>`;
 }
