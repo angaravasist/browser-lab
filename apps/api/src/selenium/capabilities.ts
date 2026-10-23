@@ -13,6 +13,8 @@ export function buildCapabilities(entry: CatalogEntry): Record<string, unknown> 
     browserName: GRID_BROWSER_NAME[entry.family],
     platformName: entry.platformName,
     'browserlab:catalogId': entry.id,
+    // A person drives the browser: WebDriver must never accept or dismiss the page's alert/confirm dialogs.
+    unhandledPromptBehavior: 'ignore',
   };
   if (entry.provider === 'selenium-docker') {
     caps['se:vncEnabled'] = true;

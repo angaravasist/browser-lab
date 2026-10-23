@@ -108,9 +108,9 @@ describe('browser identity verification', () => {
 
 describe('capabilities allowlist', () => {
   it('builds only catalogue-derived capabilities', () => {
-    expect(buildCapabilities(entry('chrome-109-linux-amd64'))).toEqual({ browserName: 'chrome', platformName: 'linux', 'browserlab:catalogId': 'chrome-109-linux-amd64', 'se:vncEnabled': true, 'se:downloadsEnabled': true });
+    expect(buildCapabilities(entry('chrome-109-linux-amd64'))).toEqual({ browserName: 'chrome', platformName: 'linux', 'browserlab:catalogId': 'chrome-109-linux-amd64', unhandledPromptBehavior: 'ignore', 'se:vncEnabled': true, 'se:downloadsEnabled': true });
     expect(buildCapabilities(entry('edge-121-linux-amd64')).browserName).toBe('MicrosoftEdge');
-    expect(Object.keys(buildCapabilities(entry('safari-16-mac')))).toEqual(['browserName', 'platformName', 'browserlab:catalogId']);
+    expect(Object.keys(buildCapabilities(entry('safari-16-mac')))).toEqual(['browserName', 'platformName', 'browserlab:catalogId', 'unhandledPromptBehavior']);
   });
 });
 

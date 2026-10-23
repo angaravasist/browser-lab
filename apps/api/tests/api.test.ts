@@ -55,7 +55,7 @@ describe('session lifecycle against a stub grid', () => {
     expect(s).toMatchObject({ state: 'running', actualBrowserVersion: '109.0.5414.119', actualArch: 'amd64', driver: 'attached' });
     expect(s.verification).toMatchObject({ ok: true, level: 'executable', executable: parseChromiumVersionPage(chromePage) });
     const sent = grid.requests.find((q) => q.method === 'POST' && q.path === '/session')!.body.capabilities.alwaysMatch;
-    expect(Object.keys(sent).sort()).toEqual(['browserName', 'browserlab:catalogId', 'platformName', 'se:downloadsEnabled', 'se:vncEnabled']);
+    expect(Object.keys(sent).sort()).toEqual(['browserName', 'browserlab:catalogId', 'platformName', 'se:downloadsEnabled', 'se:vncEnabled', 'unhandledPromptBehavior']);
     // the user's tab never visited the internal version page
     expect(grid.requests.filter((q) => q.path.endsWith('/url') && q.method === 'POST').map((q) => q.body.url)).toEqual(['chrome://version', 'http://app:3000/fixture/index.html']);
 
@@ -177,6 +177,32 @@ describe('session lifecycle against a stub grid', () => {
     const codes = [a, b].map((r) => r.status).sort();
     expect(codes).toEqual([202, 429]);
     expect([a, b].find((r) => r.status === 429)!.body.error.code).toBe('NO_SESSION_CAPACITY');
+  });
+
+  it('a dialog open in the page does not interrupt the session; screenshots explain what to do', async () => {
+    const s = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
+    await new Promise((r) => setTimeout(r, 300)); // one keepalive records the URL
+    grid.alertOpen = true;
+    await new Promise((r) => setTimeout(r, 700)); // several keepalives
+    expect((await json('GET', `/api/sessions/${s.id}?refresh=1`)).body).toMatchObject({ state: 'running', currentUrl: 'http://app:3000/fixture/index.html' });
+    const shot = await json('POST', `/api/sessions/${s.id}/screenshot`, {});
+    expect(shot.body.error.code).toBe('EVIDENCE_CAPTURE_FAILED');
+    expect(shot.body.error.message).toMatch(/dialog is open/);
+    grid.alertOpen = false;
+    expect((await json('POST', `/api/sessions/${s.id}/screenshot`, {})).status).toBe(201);
+  });
+
+  it('closing the original tab keeps the session and follows the remaining tab', async () => {
+    const s = await until((await launch('chrome-109-linux-amd64')).body.id, ['running']);
+    const stub = [...grid.sessions.values()][0];
+    stub.windows.push('w9');
+    stub.windows = stub.windows.filter((w) => w !== stub.current); // user closed the tab BrowserLab started in
+    await new Promise((r) => setTimeout(r, 700));
+    expect((await json('GET', `/api/sessions/${s.id}`)).body.state).toBe('running');
+    expect(stub.current).toBe('w9');
+    expect((await json('POST', `/api/sessions/${s.id}/screenshot`, {})).status).toBe(201);
+    stub.windows = []; // the user closed the last tab: the browser is gone
+    expect((await until(s.id, ['interrupted'])).failureCode).toBe('SESSION_INTERRUPTED');
   });
 
   it('worker loss mid-session -> interrupted; saved evidence kept; nothing passed', async () => {
