@@ -1,7 +1,7 @@
 # Implementation status
 
 What is done and verified, and what still needs hardware. Decisions and upstream evidence: [DECISIONS.md](DECISIONS.md).
-Last updated 2026-10-22. Development host: macOS 27 Apple Silicon, Docker Desktop 28.4 (arm64), Compose 2.39, Node 24.22.1.
+Last updated 2026-10-23. Development host: macOS 27 Apple Silicon, Docker Desktop 28.4 (arm64), Compose 2.39, Node 24.22.1.
 
 ## Done and verified (commands actually run on the development host)
 
@@ -12,23 +12,22 @@ Last updated 2026-10-22. Development host: macOS 27 Apple Silicon, Docker Deskto
 | End-to-end through BrowserLab only (launch, identity, viewport, viewer auth, keyboard, mouse, native-dialog upload, download, screenshot, result, exports, close, restart persistence, interrupted-session cleanup) | `node tests/integration/live-smoke.mjs --restart` | 28/28 pass |
 | UI E2E (real key/mouse events into the noVNC canvas, screenshot, result, end, results, exports) | `npm run test:e2e` | pass |
 | Static no-socket mode | `docker compose -f compose.yaml -f compose.static.yaml up -d` + live smoke | 24/24 pass; no mounts on grid or app |
-| Unit + stub-Grid integration | `npm test` | 44/44 pass |
+| Unit + stub-Grid integration | `npm test` | 50/50 pass |
 | Lint / types / build / licences / workflows | `npm run lint`, `npm run typecheck`, `npm run build`, `node scripts/check-licenses.mjs`, actionlint | clean; 104 production packages allowed |
 | Diagnostics | `npm run doctor -- --check-url http://app:3000/fixture/` | no problems |
 | Firefox 115 ESR image recipe | `docker compose -f compose.yaml -f compose.legacy-amd64.yaml build firefox-esr-image` | builds; Mozilla signature (key 14F26682…D98F0353) and SHA-256 verified; `Mozilla Firefox 115.43.1esr`, channel `esr` |
 | Legacy images are genuine vendor builds | `--version` / `dpkg -l` inside pinned images | Google Chrome 109.0.5414.119, Microsoft Edge 121.0.2277.128, Firefox 115.0.3 (release), Chrome 149.0.7827.200, Edge 149.0.4022.98 |
 | Parsers match real pages | captured `chrome://version` (Chrome 109), `edge://version` (Edge 121), `about:support` (Firefox 115 ESR, 149) | used as unit-test fixtures (amd64 captures were emulated diagnostics, not test evidence) |
+| Live browsers on Linux amd64 and arm64 (GitHub Actions) | [CI run 39911446015](https://github.com/angaravasist/browser-lab/actions/runs/39911446015) on commit `375560a` | all live jobs green: Chrome 109, Edge 121, Firefox 115 ESR, Firefox 115 release, Chrome 149, Edge 149, Firefox 149 (amd64 + arm64), UI E2E |
 | Worker files | `docker compose -f compose.worker-amd64.yaml config -q`; `… -f compose.remote-workers.example.yaml config -q`; tunnel image build | valid; tunnel image builds (OpenSSH 10.0) |
 
 ## Not run / blocked by hardware (external requirements)
 
 | Item | Why | What is needed |
 |---|---|---|
-| Live sessions for Edge 121, Firefox 115 ESR, Firefox 115 release, Chrome/Edge 149 | First CI run (2026-10-22): Chrome 109 and Firefox 149 (amd64) fully passed; Chrome 149 and Edge 121 stopped at test-script steps that are now fixed; the rest were not reached | Re-run CI `live-default` / `live-legacy` after merging the fix, and record results in BROWSER-SUPPORT.md |
 | Safari 16 | Needs a Mac on macOS 12/13 with Safari 16; development Mac has Safari 27 | Follow [SAFARI-WORKER.md](SAFARI-WORKER.md) incl. the manual validation; until then `safari-16-mac` stays not provisioned |
 | Remote amd64 worker / Mac via SSH tunnel | No second machine | Files validated only; run once on real hardware |
-| Windows Docker Desktop, macOS Intel, Linux hosts | No hardware here | CI covers Linux amd64/arm64 once enabled; Windows/Intel Mac are manual |
-| CI `live-*` jobs | First run had failures (see BROWSER-SUPPORT.md); fixes on branch `fix/live-smoke-ci` | Merge and re-run |
+| Windows Docker Desktop, macOS Intel | No hardware here | Linux amd64/arm64 are covered by CI; Windows and Intel Mac need a manual run |
 
 ## Known limitations / deliberate omissions
 
