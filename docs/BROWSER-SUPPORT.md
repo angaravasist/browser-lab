@@ -9,7 +9,8 @@ Status words, strictly:
 - **not run** – no compatible host was available. Never treated as passing.
 
 "Emulated diagnostic" means an amd64 image was started under Docker Desktop's emulation on Apple Silicon only to read
-real values for the parsers; such runs are **not** test evidence and BrowserLab itself never launches emulated builds.
+real values for the parsers; such runs are **not** test evidence. BrowserLab launches emulated builds only in the
+opt-in Apple Silicon mode (`compose.apple-silicon-legacy.yaml`), and every such result is labelled **Emulated**.
 
 Last updated: 2026-10-23. Selenium Grid 4.51.0 (`20261010` images). Latest full CI evidence: [CI run 39911446015](https://github.com/angaravasist/browser-lab/actions/runs/39911446015) (commit `375560a`), every live job green.
 
@@ -50,3 +51,17 @@ Last updated: 2026-10-23. Selenium Grid 4.51.0 (`20261010` images). Latest full 
 - "Newest provisioned" means the newest build installed and ready in this BrowserLab. BrowserLab never claims a build
   is the vendor's latest release; compare with the vendors' release pages.
 - Testing a minimum version does not prove intermediate versions; add them to the policy explicitly.
+
+## Opt-in emulated mode on Apple Silicon
+
+`compose.apple-silicon-legacy.yaml` runs the amd64 images under Docker Desktop's Rosetta emulation. Same pinned vendor
+builds and the same identity checks; results carry the label *amd64 emulated on Apple Silicon (Rosetta)*. Guide:
+[APPLE-SILICON.md](APPLE-SILICON.md).
+
+| Catalogue id | Host | Status | How verified |
+|---|---|---|---|
+| `chrome-109-linux-amd64` | macOS 27, Apple Silicon, Docker Desktop 28.4 | **tested, emulated** (2026-10-23) | Live smoke 24/24 through BrowserLab; identity *Google Chrome 109.0.5414.119, Official Build* |
+| `edge-121-linux-amd64` | same | **tested, emulated** (2026-10-23) | Live smoke 24/24 in 3 consecutive runs; identity *Microsoft Edge 121.0.2277.128, Official build*. Its first-run "Personalize your web experience" panel must be closed first. |
+| `firefox-115esr-linux-amd64` | same | **tested, emulated** (2026-10-23) | Live smoke 24/24; about:support `115.43.1esr` on the **esr** channel |
+
+Not covered by CI: GitHub's runners cannot run Docker Desktop's Rosetta. Speed and timing differ from native hardware.

@@ -5,7 +5,7 @@ const NAMES: Record<Family, [string, string]> = {
   chrome: ['Google Chrome', 'Blink'], firefox: ['Mozilla Firefox', 'Gecko'], edge: ['Microsoft Edge', 'Blink'], safari: ['Apple Safari', 'WebKit'],
 };
 
-export const buildLabel = (b: BrowserBuild) => `${b.brand} ${b.requestedVersion}${b.channel === 'esr' ? ' ESR' : ''} · ${b.platformName}/${b.architectures.join('+')}`;
+export const buildLabel = (b: BrowserBuild) => `${b.brand} ${b.requestedVersion}${b.channel === 'esr' ? ' ESR' : ''} · ${b.platformName}/${b.architectures.join('+')}${b.emulation ? ' · emulated' : ''}`;
 
 export function FamilyCards({ builds, value, onChange }: { builds: BrowserBuild[]; value: Family; onChange: (f: Family) => void }) {
   return (

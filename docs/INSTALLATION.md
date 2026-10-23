@@ -27,7 +27,7 @@ Check the install at any time: `npm run doctor` (needs Node.js 24) or open **Set
 | Host | Ready by default | Notes |
 |---|---|---|
 | Linux / Windows (WSL2) / Intel Mac, amd64 | Firefox 149, Chrome 149, Edge 149 | Add the legacy overlay for Chrome 109, Edge 121, Firefox 115 ESR. |
-| Apple Silicon Mac / Linux arm64 | Firefox 149 | Chrome and Edge builds are amd64-only and show **unsupported architecture**. Use a dedicated amd64 worker. Emulation is not offered. |
+| Apple Silicon Mac / Linux arm64 | Firefox 149 | Chrome and Edge builds are amd64-only and show **unsupported architecture**. On Apple Silicon Macs, an opt-in emulated mode runs Chrome 109, Edge 121 and Firefox 115 ESR through Rosetta, labelled *Emulated* in every result: [APPLE-SILICON.md](APPLE-SILICON.md). Otherwise use a dedicated amd64 worker. |
 | Any | Safari | Never in Docker. Needs a real Mac running the Safari version: [SAFARI-WORKER.md](SAFARI-WORKER.md). |
 
 See [BROWSER-SUPPORT.md](BROWSER-SUPPORT.md) for what has actually been tested where.

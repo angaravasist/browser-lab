@@ -39,7 +39,7 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid transparent; white-space: nowrap; }
 .b-ready, .b-passed, .b-running, .b-completed { background: var(--ok-bg); color: var(--ok); }
 .b-failed, .b-verification-failed, .b-failed-to-start, .b-closed-with-error { background: var(--bad-bg); color: var(--bad); }
-.b-blocked, .b-busy, .b-expired, .b-interrupted, .b-offline { background: var(--warn-bg); color: var(--warn); }
+.b-emulated, .b-blocked, .b-busy, .b-expired, .b-interrupted, .b-offline { background: var(--warn-bg); color: var(--warn); }
 .b-not-provisioned, .b-unsupported-architecture, .b-not-run, .b-skipped, .b-queued, .b-provisioning, .b-starting, .b-verifying, .b-closing { background: var(--info-bg); color: var(--text); border-color: var(--line); }
 .callout { padding: 10px 12px; border-radius: 8px; background: var(--info-bg); border: 1px solid var(--line); margin: 10px 0; }
 .callout.warn { background: var(--warn-bg); color: var(--warn); } .callout.bad { background: var(--bad-bg); color: var(--bad); } .callout.ok { background: var(--ok-bg); color: var(--ok); }

@@ -48,3 +48,10 @@ node tests/integration/live-smoke.mjs --restart
 npm run test:e2e
 npm run doctor
 ```
+
+## Opt-in emulated mode on Apple Silicon (2026-10-23)
+
+`docker compose -f compose.yaml -f compose.apple-silicon-legacy.yaml up -d --build` on macOS 27 / Apple Silicon:
+Chrome 109, Edge 121 and Firefox 115 ESR ready and labelled *Emulated*; live smoke 24/24 for each (Edge 3 runs in a
+row). Labels verified in the build list, session view, Results page and JSON/CSV/HTML exports (integration test).
+Guide: [APPLE-SILICON.md](APPLE-SILICON.md). Not verifiable in CI (no Rosetta on GitHub runners).

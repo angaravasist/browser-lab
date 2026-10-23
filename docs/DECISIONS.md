@@ -89,3 +89,8 @@ each installation; the Firefox ESR image is built locally from Mozilla's archive
   serves both amd64 and Mac workers.
 - **Sessions start in `queued`**: URL/target validation is synchronous before the row exists, so `requested` and
   `validating` are never persisted.
+- **Opt-in emulation on Apple Silicon** (`compose.apple-silicon-legacy.yaml`): the original plan ruled out emulation
+  because QEMU is slow and unreliable. Docker Desktop's Rosetta ran Chrome 109, Edge 121 and Firefox 115 ESR through the
+  full live smoke on Apple Silicon at native-like speed, so it is offered as an explicit opt-in. Emulated containers
+  report `x86_64`, so emulation cannot be detected from inside; the workers are declared in
+  `BROWSERLAB_EMULATED_WORKERS` and every session, report and UI view from them is labelled *Emulated*.

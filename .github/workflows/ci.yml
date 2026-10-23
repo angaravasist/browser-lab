@@ -40,6 +40,7 @@ jobs:
           docker compose config -q
           docker compose -f compose.yaml -f compose.static.yaml config -q
           docker compose -f compose.yaml -f compose.legacy-amd64.yaml config -q
+          docker compose -f compose.yaml -f compose.apple-silicon-legacy.yaml config -q
           docker compose -f compose.worker-amd64.yaml config -q
           docker compose -f compose.yaml -f compose.remote-workers.example.yaml config -q
       - name: No private keys committed

@@ -109,6 +109,7 @@ export function QuickTest() {
         {strategy === 'custom' ? <VersionSelect builds={builds} family={family} value={catalogId} onChange={setCatalogId} />
           : <p>Resolves to: <b>{resolved ? `${resolved.brand} ${resolved.requestedVersion}` : 'nothing'}</b> {resolved && <span className="muted">— {resolved.reason}</span>}</p>}
         {strategy === 'newest-provisioned' && <small className="muted">“Newest provisioned” is the newest version installed and ready in this BrowserLab, not necessarily the vendor's latest release.</small>}
+        {resolved?.emulation && <div className="callout warn"><b>Emulated:</b> {resolved.emulation}. This is the genuine browser build, but its CPU instructions are translated, so speed and timing can differ from real Intel/AMD hardware. Results are labelled as emulated.</div>}
         {resolved && <p className="muted">Runs on {resolved.platformName} / {resolved.workerArch ?? resolved.architectures.join(' or ')} · worker “{resolved.worker}”. The exact version is verified after launch.</p>}
         {resolved && resolved.availability !== 'ready' && <div className="callout warn" role="status"><b>Cannot launch:</b> {resolved.reason}</div>}
       </div>

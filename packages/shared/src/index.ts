@@ -65,7 +65,12 @@ export const CatalogEntrySchema = z.object({
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
 export const CatalogSchema = z.object({ gridRelease: z.string(), entries: z.array(CatalogEntrySchema).min(1) });
 
+/** Label for sessions on workers listed in BROWSERLAB_EMULATED_WORKERS (amd64 images on Apple Silicon via Docker's Rosetta). */
+export const EMULATION_LABEL = 'amd64 emulated on Apple Silicon (Rosetta)';
+
 export interface BrowserBuild extends CatalogEntry {
+  /** Set when the worker serving this build runs it under CPU emulation. */
+  emulation?: string;
   availability: Availability;
   reason: string;
   workerArch?: string;
@@ -143,6 +148,8 @@ export interface Verification {
   capabilities: { browserName?: string; browserVersion?: string; platformName?: string; driverVersion?: string; buildId?: string; nodeArch?: string };
   executable?: { product?: string; version?: string; channel?: string; officialBuild?: boolean; path?: string };
   supplementary?: { uaBrands?: string[]; navigatorPlatform?: string };
+  /** Present when the browser ran under CPU emulation; the browser build itself is unchanged. */
+  emulation?: string;
 }
 
 export interface SessionView {
@@ -156,6 +163,7 @@ export interface SessionView {
   actualBrowserVersion: string | null;
   actualOs: string | null;
   actualArch: string | null;
+  emulation: string | null;
   targetUrl: string;
   currentUrl?: string | null;
   projectId: string | null;

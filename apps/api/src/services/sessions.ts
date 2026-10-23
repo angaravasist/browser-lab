@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import webdriver from 'selenium-webdriver';
-import { ACTIVE_STATES, FINAL_STATES, type CatalogEntry, type CreateSession, type SessionState, type SessionView, type Verification } from '@browserlab/shared';
+import { ACTIVE_STATES, EMULATION_LABEL, FINAL_STATES, type CatalogEntry, type CreateSession, type SessionState, type SessionView, type Verification } from '@browserlab/shared';
 import type { FastifyBaseLogger } from 'fastify';
 import type { DB } from '../db/index.ts';
 import { now, uuid } from '../db/index.ts';
@@ -121,6 +121,7 @@ export class SessionService {
       let nodeArch: string | undefined;
       try { nodeArch = (await gridStatus(live.gridUrl)).nodes.find((n) => n.slots.some((s) => s.sessionId === gridId))?.arch; } catch { /* recorded as unknown */ }
       const verdict = evaluate(entry, await collectFacts(driver, caps, entry, nodeArch));
+      if (this.cfg.emulatedWorkers.has(this.row(id).worker_id)) verdict.emulation = EMULATION_LABEL;
       this.recordVerification(entry, verdict, caps);
       if (!verdict.ok) return await startFail('BROWSER_VERSION_MISMATCH', `Started browser does not match ${entry.brand} ${entry.requestedVersion}: ${verdict.mismatches.join('; ')}`);
       this.db.prepare('UPDATE sessions SET actual_browser_version = ?, actual_os = ?, actual_arch = ?, verification_json = ? WHERE id = ?')
@@ -342,6 +343,7 @@ export class SessionService {
     const res = this.db.prepare('SELECT outcome, notes, checklist, tester, checked_at FROM results WHERE session_id = ?').get(id) as any;
     const evidenceCount = (this.db.prepare('SELECT COUNT(*) n FROM evidence WHERE session_id = ?').get(id) as { n: number }).n;
     const last = Date.parse(r.last_activity_at);
+    const verification: Verification | null = r.verification_json ? JSON.parse(r.verification_json) : null;
     return {
       id: r.id, state: r.state, driver: r.driver_state, catalogId: r.browser_build_id, family: entry?.family ?? 'chrome', brand: entry?.brand ?? r.browser_build_id,
       requestedVersion: r.requested_version, actualBrowserVersion: r.actual_browser_version, actualOs: r.actual_os, actualArch: r.actual_arch,
@@ -350,7 +352,7 @@ export class SessionService {
       effectiveViewport: r.effective_width ? { width: r.effective_width, height: r.effective_height! } : null,
       startedAt: r.started_at, endedAt: r.ended_at, lastActivityAt: r.last_activity_at,
       expiresAt: r.state === 'running' ? new Date(Math.min(last + this.cfg.idleMs, Date.parse(r.started_at) + this.cfg.maxSessionMs)).toISOString() : null,
-      failureCode: r.failure_code, failureMessage: r.failure_message ?? r.navigation_error, verification: r.verification_json ? JSON.parse(r.verification_json) : null,
+      failureCode: r.failure_code, failureMessage: r.failure_message ?? r.navigation_error, verification, emulation: verification?.emulation ?? null,
       result: res ? { outcome: res.outcome, notes: res.notes, checklist: res.checklist, tester: res.tester, checkedAt: res.checked_at } : null,
       evidenceCount, capabilities: entry?.capabilities ?? { screenshots: false, windowResize: false, uploads: false, downloads: false, clipboard: false },
     };

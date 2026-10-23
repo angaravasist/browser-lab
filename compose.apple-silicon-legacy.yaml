@@ -1,0 +1,68 @@
+# OPT-IN for Apple Silicon Macs: Google Chrome 109, Microsoft Edge 121 and Firefox 115 ESR run as amd64 images
+# under Docker Desktop's Rosetta emulation. Every result from these browsers is labelled "emulated".
+#   docker compose -f compose.yaml -f compose.apple-silicon-legacy.yaml up -d --build
+# Guide: docs/APPLE-SILICON.md. On Intel/AMD hosts use compose.legacy-amd64.yaml instead (no emulation).
+# Each browser is one long-lived container that serves one session at a time (like compose.static.yaml).
+
+x-emulated-worker: &emulated-worker
+  platform: linux/amd64
+  restart: unless-stopped
+  shm_size: 2gb
+  networks: [browserlab]
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  healthcheck:
+    test: ["CMD-SHELL", "curl -sf http://127.0.0.1:4444/status | grep -q '\"ready\": true'"]
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 300s
+
+x-emulated-env: &emulated-env
+  SE_NODE_MAX_SESSIONS: "1"
+  SE_NODE_OVERRIDE_MAX_SESSIONS: "true"
+  SE_NODE_SESSION_TIMEOUT: "300"
+  SE_NODE_ENABLE_MANAGED_DOWNLOADS: "true"
+  SE_REJECT_UNSUPPORTED_CAPS: "true"
+  SE_VNC_NO_PASSWORD: "true"
+
+services:
+  app:
+    environment:
+      BROWSERLAB_GRID_URLS: local=http://grid:4444,emu-chrome109=http://emu-chrome109:4444,emu-edge121=http://emu-edge121:4444,emu-firefox115esr=http://emu-firefox115esr:4444
+      BROWSERLAB_EMULATED_WORKERS: emu-chrome109,emu-edge121,emu-firefox115esr
+
+  emu-chrome109:
+    <<: *emulated-worker
+    image: selenium/standalone-chrome:109.0-chromedriver-109.0-grid-4.51.0-20261010@sha256:eba35b7bfa2f3acf17f93c1197c7fdb0ec63adfc3b774488736ee212a20886bc
+    environment:
+      <<: *emulated-env
+      SE_NODE_GRID_URL: http://emu-chrome109:4444
+      SE_NODE_STEREOTYPE_EXTRA: '{"browserlab:catalogId": "chrome-109-linux-amd64"}'
+
+  emu-edge121:
+    <<: *emulated-worker
+    image: selenium/standalone-edge:121.0-edgedriver-121.0-grid-4.51.0-20261010@sha256:f81b8609e06f973158fc87b14effbb6e2a1e6171508aabe75ca52f542b9182a0
+    environment:
+      <<: *emulated-env
+      SE_NODE_GRID_URL: http://emu-edge121:4444
+      SE_NODE_STEREOTYPE_EXTRA: '{"browserlab:catalogId": "edge-121-linux-amd64"}'
+
+  firefox-esr-image:
+    # Builds the Firefox 115 ESR image from Mozilla's signed archive; exits immediately when run.
+    build: { context: browser-images/custom/firefox-115esr }
+    image: browserlab/standalone-firefox:115.43.1esr-grid-4.51.0-20261010
+    platform: linux/amd64
+    entrypoint: ["true"]
+    restart: "no"
+    network_mode: none
+
+  emu-firefox115esr:
+    <<: *emulated-worker
+    image: browserlab/standalone-firefox:115.43.1esr-grid-4.51.0-20261010
+    depends_on:
+      firefox-esr-image: { condition: service_completed_successfully }
+    environment:
+      <<: *emulated-env
+      SE_NODE_GRID_URL: http://emu-firefox115esr:4444
+      SE_NODE_STEREOTYPE_EXTRA: '{"browserlab:catalogId": "firefox-115esr-linux-amd64"}'

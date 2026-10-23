@@ -50,6 +50,7 @@ try {
 
   const color = '11c95d';
   const fixture = `${a.fixture}/index.html`;
+  const launchedAt = Date.now();
   const s = await launch(a.catalog, `${fixture}?color=${color}`);
   current = s.id;
   ok(`session ${s.id} running: ${s.brand} ${s.actualBrowserVersion} on ${s.actualOs}/${s.actualArch}`);
@@ -81,6 +82,13 @@ try {
   const px = await waitFor(async () => { const p = await rfb.pixel(1100, 500); return near(p, target) ? p : null; }, 'fixture colour on the VNC desktop', 15_000);
   check(near(px, target), 'WebDriver page is the page on the VNC desktop (colour marker)');
 
+  if (build.family === 'edge') {
+    // Edge shows a first-run "Personalize your web experience" panel about 30 s after start; it takes keyboard
+    // focus away from the page. Wait for it and close it with Escape, as a person would.
+    await sleep(Math.max(0, launchedAt + 40_000 - Date.now()));
+    await rfb.tap(KEY.Escape);
+    await sleep(500);
+  }
   // Keyboard: focus heading, Tab into the name field, type, Enter submits the form (navigation).
   await rfb.click(300, 150);
   await rfb.tap(KEY.Tab);
@@ -100,19 +108,28 @@ try {
   const uploadBody = Buffer.from(`browserlab smoke ${Date.now()}\n`);
   const up = await api('POST', `/api/sessions/${s.id}/files`, uploadBody, { 'content-type': 'application/octet-stream', 'x-filename': 'smoke-upload.txt' });
   check(up.remotePath.endsWith('smoke-upload.txt'), `upload staged at ${up.remotePath}`);
-  await sleep(800);
-  await rfb.click(300, 150);
-  for (let i = 0; i < 4; i++) await rfb.tap(KEY.Tab);
-  await rfb.tap(0x20);
-  await sleep(2500);
-  await rfb.combo(KEY.Control, 0x6c);
-  await sleep(500);
-  await rfb.type(up.remotePath);
-  await rfb.tap(KEY.Return);
   const uploaded = async () => (await currentUrl(s.id)).includes('uploaded=smoke-upload.txt');
-  await sleep(1500);
-  // Newer GTK file dialogs (e.g. in Chrome 149) ignore Enter in the location field; Alt+O presses their "Open" button.
-  if (!(await uploaded())) await rfb.combo(0xffe9, 0x6f);
+  // The dialog can take several seconds to open under emulation. If it was not open yet, Ctrl+L reached the
+  // browser's own address bar and the path opened as a file:// page: go back and try again with a longer wait.
+  for (const wait of [4000, 12000]) {
+    await sleep(800);
+    await rfb.click(300, 150);
+    for (let i = 0; i < 4; i++) await rfb.tap(KEY.Tab);
+    await rfb.tap(0x20);
+    await sleep(wait);
+    await rfb.combo(KEY.Control, 0x6c);
+    await sleep(500);
+    await rfb.type(up.remotePath);
+    await sleep(2500); // let a slow dialog finish taking the typed path and close its completion list
+    await rfb.tap(KEY.Return);
+    await sleep(1500);
+    // Newer GTK file dialogs (e.g. in Chrome 149) ignore Enter in the location field; Alt+O presses their "Open" button.
+    if (!(await uploaded())) await rfb.combo(0xffe9, 0x6f);
+    await sleep(1500);
+    if (await uploaded() || !(await currentUrl(s.id)).startsWith('file:')) break;
+    await rfb.combo(0xffe9, 0xff51); // Alt+Left: browser back to the form
+    await waitFor(async () => !(await currentUrl(s.id)).startsWith('file:'), 'back to the form', 10_000);
+  }
   check(await waitFor(uploaded, 'file chooser upload', 20_000), 'file chosen in the native file dialog reached the page');
 
   // Download via the browser's own address bar, then retrieve through BrowserLab.

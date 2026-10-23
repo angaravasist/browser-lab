@@ -77,6 +77,7 @@ export function Session({ id }: { id: string }) {
         <dt>Requested</dt><dd>{s.brand} {s.requestedVersion}</dd>
         <dt>Actual</dt><dd>{s.actualBrowserVersion ?? 'not started'}{v?.executable?.channel ? ` (${v.executable.channel} channel)` : ''}</dd>
         <dt>OS / CPU</dt><dd>{s.actualOs ?? '—'} / {s.actualArch ?? '—'}</dd>
+        {s.emulation && <><dt>Execution</dt><dd><span className="badge b-emulated" title={s.emulation}>Emulated</span> {s.emulation}</dd></>}
         <dt>Driver</dt><dd>{v?.capabilities.driverVersion ?? '—'}</dd>
         <dt>Verified</dt><dd>{v ? <>{v.ok ? <span className="badge b-ready">Matched</span> : <span className="badge b-failed">Mismatch</span>} {v.level === 'executable' ? "browser's own version page + WebDriver" : v.level === 'capabilities' ? 'WebDriver capabilities only' : 'none'}</> : '—'}</dd>
       </dl>
@@ -144,6 +145,7 @@ export function Session({ id }: { id: string }) {
       <div className="toolbar" role="toolbar" aria-label="Session">
         <b>{s.brand} {s.actualBrowserVersion}</b>
         <span>{s.actualOs}/{s.actualArch}</span>
+        {s.emulation && <span className="badge b-emulated" title={s.emulation}>Emulated</span>}
         <span className="url" title={s.currentUrl ?? s.targetUrl}>{s.currentUrl ?? s.targetUrl}</span>
         <span>Viewport {s.effectiveViewport ? `${s.effectiveViewport.width}×${s.effectiveViewport.height}` : '—'}</span>
         {s.buildLabel && <span>Build {s.buildLabel}</span>}
