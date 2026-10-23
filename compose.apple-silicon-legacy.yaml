@@ -60,6 +60,8 @@ services:
   emu-firefox115esr:
     <<: *emulated-worker
     image: browserlab/standalone-firefox:115.43.1esr-grid-4.51.0-20261010
+    # Built locally by firefox-esr-image above; it is not on Docker Hub, so never try to download it.
+    pull_policy: never
     depends_on:
       firefox-esr-image: { condition: service_completed_successfully }
     environment:
