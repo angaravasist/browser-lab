@@ -44,3 +44,12 @@ export function redactUrl(raw: string): string {
     return raw.startsWith('/') ? u.pathname + u.search : u.href;
   } catch { return '[unparseable url]'; }
 }
+
+const SECRET_PARAM = /token|key|secret|pass|auth|session|sig|code|credential|jwt/i;
+
+/** For storage: masks only query values whose names look like secrets, so the tested page stays identifiable. */
+export function redactSecrets(url: string): string {
+  const u = new URL(url);
+  for (const k of [...u.searchParams.keys()]) if (SECRET_PARAM.test(k)) u.searchParams.set(k, '***');
+  return u.href;
+}

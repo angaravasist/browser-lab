@@ -86,7 +86,11 @@ try {
   await rfb.tap(KEY.Tab);
   await rfb.type('smoke');
   await rfb.tap(KEY.Return);
-  check(await waitFor(async () => (await currentUrl(s.id)).includes('name=smoke'), 'form submission'), 'keyboard input + form submit navigated to page2?name=smoke');
+  const submitted = async () => (await currentUrl(s.id)).includes('name=smoke');
+  await sleep(1500);
+  // Edge 121 shows its autofill list under the field; the first Enter only closes it.
+  if (!(await submitted())) await rfb.tap(KEY.Return);
+  check(await waitFor(submitted, 'form submission'), 'keyboard input + form submit navigated to page2?name=smoke');
   // Mouse: click the large link. Left half, because browsers may show their own prompts on the right (Edge offers to save form data).
   await sleep(800);
   await rfb.click(300, 500);

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import net from 'node:net';
 import { CatalogSchema, type CatalogEntry } from '@browserlab/shared';
-import { checkTargetUrl, redactUrl } from '../src/services/urlPolicy.ts';
+import { checkTargetUrl, redactSecrets, redactUrl } from '../src/services/urlPolicy.ts';
 import { evaluate, parseChromiumVersionPage, type Facts } from '../src/selenium/verify.ts';
 import { buildCapabilities } from '../src/selenium/capabilities.ts';
 import { ByteReader, authenticateUpstream, desEcb, greetViewer, vncAuthResponse } from '../src/selenium/rfbAuth.ts';
@@ -44,6 +44,11 @@ describe('URL policy', () => {
   it('redacts query values and credentials in logs', () => {
     expect(redactUrl('/api/sessions/x/live?token=abc')).toBe('/api/sessions/x/live?token=***');
     expect(redactUrl('https://a.com/p?key=secret#frag')).toBe('https://a.com/p?key=***');
+  });
+  it('stores URLs with only secret-looking query values masked', () => {
+    expect(redactSecrets('https://a.com/p?tenant=acme&page=2&api_key=k&access_token=t&Password=p&code=c'))
+      .toBe('https://a.com/p?tenant=acme&page=2&api_key=***&access_token=***&Password=***&code=***');
+    expect(redactSecrets('https://a.com/p')).toBe('https://a.com/p');
   });
 });
 

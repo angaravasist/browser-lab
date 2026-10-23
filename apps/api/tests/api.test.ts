@@ -72,12 +72,13 @@ describe('session lifecycle against a stub grid', () => {
     expect((await json('GET', '/api/reports?outcome=passed')).body).toHaveLength(1);
   });
 
-  it('persists redacted URL query parameters but navigates the exact original URL', async () => {
+  it('persists secret-looking query values redacted, keeps ordinary ones, and navigates the exact original URL', async () => {
     const secret = 'never-save-this-value';
-    const targetUrl = `http://app:3000/fixture/index.html?auth=${secret}`;
+    const targetUrl = `http://app:3000/fixture/index.html?tenant=acme&auth=${secret}`;
     const r = await launch('chrome-109-linux-amd64', { targetUrl });
     const s = await until(r.body.id, ['running']);
     expect(s.targetUrl).toContain('auth=***');
+    expect(s.targetUrl).toContain('tenant=acme');
     expect(s.targetUrl).not.toContain(secret);
     expect(grid.requests.some((x) => x.method === 'POST' && x.path.endsWith('/url') && x.body.url === targetUrl)).toBe(true);
     expect(JSON.stringify((await json('GET', '/api/reports')).body)).not.toContain(secret);
@@ -236,6 +237,7 @@ describe('live viewer relay', () => {
     expect((await json('GET', '/api/health', undefined, { host: 'localhost@attacker.example:3000' })).status).toBe(403);
     expect((await json('GET', '/api/health', undefined, { host: '127.0.0.1:3000' })).status).toBe(200);
     expect((await json('GET', '/api/health', undefined, { host: 'app:3000' })).status).toBe(200);
+    expect((await json('GET', '/api/health', undefined, { host: 'host.docker.internal:3000' })).status).toBe(200);
   });
 
   it('rejects cross-origin writes (CSRF guard)', async () => {
