@@ -26,7 +26,7 @@ node tests/integration/live-smoke.mjs --fixture http://host.docker.internal:3000
 `.github/workflows/ci.yml`: checks (lint, typecheck, tests, build, TOML drift, licences, `npm audit`, Compose validation,
 no company/secret strings); multi-arch app/grid image builds; `live-default` (Linux amd64: Firefox/Chrome/Edge current,
 contract, smoke with restart, UI E2E); `live-arm64` (Linux arm64: Firefox, and amd64-only builds must report
-unsupported); `live-legacy` (Chrome 109, Edge 121, Firefox 115 ESR, Firefox 115 release; not on pull requests);
+unsupported); `live-legacy` (Chrome 109, Edge 121, Firefox 115 ESR, Firefox 115 release; not on pull requests, run it on a branch with `gh workflow run CI --ref <branch>`);
 `safari` only on manual dispatch with a self-hosted `macos-safari16` runner – skipped otherwise, never reported green.
 
 Windows and macOS GitHub runners cannot run Linux browser containers, so Docker Desktop on Windows/macOS is verified

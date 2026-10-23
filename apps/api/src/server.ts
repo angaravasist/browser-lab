@@ -41,8 +41,9 @@ export async function buildApp(cfg: Config = loadConfig()) {
   const ctx: Ctx = { db, cfg, catalog, sessions, evidence };
 
   // A loopback listener can still be targeted by DNS rebinding if Host is trusted blindly.
-  // "app" is BrowserLab's internal Docker hostname used by the built-in fixture.
-  const localHosts = new Set(['localhost', '127.0.0.1', '[::1]', 'app']);
+  // "app" is BrowserLab's internal Docker hostname used by the built-in fixture; host.docker.internal is how
+  // browser containers reach an API run on the host (docs/TESTING.md). Neither name can come from a rebinding attack.
+  const localHosts = new Set(['localhost', '127.0.0.1', '[::1]', 'app', 'host.docker.internal']);
   const proxyHosts = new Set(cfg.publicOrigins.map((origin) => new URL(origin).hostname.toLowerCase()));
   const allowedHost = (rawHost: string | undefined, localAddress?: string): boolean => {
     // Reject malformed Host values without accidentally matching ordinary letters (e.g. the "s" in localhost).
