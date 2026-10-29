@@ -1,6 +1,6 @@
 # Minimal SSH client used to reach remote workers (dedicated amd64 Grid, Safari Mac) without exposing
 # their WebDriver or VNC ports on the LAN. Keys and known_hosts are mounted read-only by the operator.
-FROM alpine:3.22@sha256:d406446bc05b82480756ce8f1287964d28768c23955fa9480d2a74a2eae7a654
+FROM alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
 RUN apk add --no-cache openssh-client && adduser -D -u 10001 tunnel
 USER tunnel
 ENTRYPOINT ["ssh", "-N", "-o", "ExitOnForwardFailure=yes", "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=3", \
